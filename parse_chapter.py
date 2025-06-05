@@ -365,7 +365,7 @@ def main(args: argparse.Namespace):
 
     # Set final output directory - use custom path if provided, otherwise use novel title with Raws subfolder
     if args.output_path:
-        output_dir_path = args.output_path
+        output_dir_path = os.path.join(args.output_path, "Raws")
     else:
         output_dir_path = os.path.join(safe_novel_title_dir_name, "Raws")
 

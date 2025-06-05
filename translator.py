@@ -3,6 +3,8 @@ import re
 import json
 import argparse
 import time # For potential future use with actual translation APIs
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import threading
 
 # Attempt to import the translation function and providers
 try:
@@ -53,6 +55,190 @@ def _ensure_directory_exists(dir_path: str) -> bool:
             print(f"Error creating directory {dir_path}: {e}")
             return False
     return True
+
+def _process_single_chapter(chapter_filename, retry_failed_only, progress_data, raws_dir, translated_raws_dir, progress_file_path, api_provider_name, max_retries_per_chapter, progress_lock):
+    """
+    Processes a single chapter file for translation.
+    
+    Args:
+        chapter_filename: Name of the chapter file to process
+        retry_failed_only: Whether this is a retry-only session
+        progress_data: Progress tracking dictionary
+        raws_dir: Directory containing raw chapter files
+        translated_raws_dir: Directory for translated chapter files
+        progress_file_path: Path to progress JSON file
+        api_provider_name: API provider name for translation
+        max_retries_per_chapter: Maximum retry attempts per chapter
+        progress_lock: Threading lock for progress data access
+    
+    Returns:
+        tuple: (success: bool, chapter_filename: str, message: str)
+    """
+    with progress_lock:
+        if not retry_failed_only and chapter_filename in progress_data["translated_files"]:
+            return (True, chapter_filename, "Already translated (skipped)")
+
+        current_failure_count = progress_data['failed_translation_attempts'].get(chapter_filename, 0)
+        if current_failure_count >= max_retries_per_chapter:
+            return (False, chapter_filename, f"Max retries reached ({current_failure_count})")
+
+    raw_chapter_filepath = os.path.join(raws_dir, chapter_filename)
+    if not os.path.exists(raw_chapter_filepath):
+        with progress_lock:
+            if chapter_filename in progress_data['failed_translation_attempts']:
+                del progress_data['failed_translation_attempts'][chapter_filename]
+        return (False, chapter_filename, "Raw file not found")
+        
+    translated_chapter_filepath = os.path.join(translated_raws_dir, chapter_filename)
+
+    try:
+        with open(raw_chapter_filepath, 'r', encoding='utf-8') as infile:
+            raw_content = infile.read()
+        
+        # API_KEY check is implicitly handled by openrouter.py now.
+        if not OPENROUTER_AVAILABLE:
+            info_msg = "Translation module not available, using placeholder"
+        elif not os.getenv("API_KEY"):
+            info_msg = "API_KEY not set, using placeholder"
+        else:
+            info_msg = None
+
+        translated_content = translate(raw_content, api_provider_name=api_provider_name)
+
+        if translated_content.startswith(("Error:", "HTTP error", "Connection error", 
+                                          "Timeout error", "An unexpected error", 
+                                          "An unforeseen error", "Rate limit exceeded")):
+            with progress_lock:
+                progress_data['failed_translation_attempts'][chapter_filename] = current_failure_count + 1
+                try:
+                    with open(progress_file_path, 'w', encoding='utf-8') as pf:
+                        json.dump(progress_data, pf, indent=4)
+                except IOError:
+                    pass
+            return (False, chapter_filename, f"Translation API Error: {translated_content}")
+        
+        # Save translated content
+        chapter_num = extract_chapter_number(chapter_filename)
+        padded_chapter_num = f"{chapter_num:03d}"
+        placeholder_title = chapter_filename.replace(".md", "")
+        formatted_output = f"# Chapter -{padded_chapter_num}\\n## {placeholder_title}\\n\\n{translated_content}"
+        
+        with open(translated_chapter_filepath, 'w', encoding='utf-8') as outfile:
+            outfile.write(formatted_output)
+        
+        # Update progress safely
+        with progress_lock:
+            if chapter_filename not in progress_data["translated_files"]:
+                progress_data["translated_files"].append(chapter_filename)
+            if chapter_filename in progress_data['failed_translation_attempts']:
+                del progress_data['failed_translation_attempts'][chapter_filename]
+            
+            try:
+                with open(progress_file_path, 'w', encoding='utf-8') as pf:
+                    json.dump(progress_data, pf, indent=4)
+            except IOError:
+                pass
+        
+        success_msg = "Successfully translated"
+        if info_msg:
+            success_msg = f"{info_msg}, saved as placeholder"
+        
+        return (True, chapter_filename, success_msg)
+
+    except FileNotFoundError:
+        return (False, chapter_filename, "Raw file not found during processing")
+    except Exception as e:
+        with progress_lock:
+            progress_data['failed_translation_attempts'][chapter_filename] = current_failure_count + 1
+            try:
+                with open(progress_file_path, 'w', encoding='utf-8') as pf:
+                    json.dump(progress_data, pf, indent=4)
+            except IOError:
+                pass
+        return (False, chapter_filename, f"Processing error: {e}")
+
+def _process_chapters(files_to_process, retry_failed_only, progress_data, raws_dir, translated_raws_dir, progress_file_path, api_provider_name, novel_name_from_dir, max_retries_per_chapter=3, api_call_delay=5, workers=1):
+    """
+    Processes a list of chapter files for translation using multiple workers.
+    
+    Args:
+        files_to_process: List of chapter filenames to process
+        retry_failed_only: Whether this is a retry-only session
+        progress_data: Progress tracking dictionary
+        raws_dir: Directory containing raw chapter files
+        translated_raws_dir: Directory for translated chapter files
+        progress_file_path: Path to progress JSON file
+        api_provider_name: API provider name for translation
+        novel_name_from_dir: Novel title from directory name
+        max_retries_per_chapter: Maximum retry attempts per chapter
+        api_call_delay: Delay between API calls in seconds
+        workers: Number of worker threads
+    
+    Returns:
+        int: Number of chapters processed in this session
+    """
+    chapters_processed_this_session = 0
+    progress_lock = threading.Lock()
+    
+    if workers == 1:
+        # Single-threaded processing (original behavior)
+        for chapter_filename in files_to_process:
+            success, filename, message = _process_single_chapter(
+                chapter_filename, retry_failed_only, progress_data, raws_dir, translated_raws_dir,
+                progress_file_path, api_provider_name, max_retries_per_chapter, progress_lock
+            )
+            
+            if success and "skipped" not in message.lower():
+                chapters_processed_this_session += 1
+                print(f"✓ {filename}: {message}")
+            elif not success:
+                print(f"✗ {filename}: {message}")
+            
+            # Rate limiting for API calls
+            if success and OPENROUTER_AVAILABLE and os.getenv("API_KEY") and "placeholder" not in message.lower():
+                print(f"    Waiting {api_call_delay} seconds before next API call...")
+                time.sleep(api_call_delay)
+    else:
+        # Multi-threaded processing
+        print(f"Starting translation with {workers} workers...")
+        
+        with ThreadPoolExecutor(max_workers=workers) as executor:
+            # Submit all tasks
+            future_to_chapter = {
+                executor.submit(_process_single_chapter, chapter_filename, retry_failed_only, progress_data, 
+                               raws_dir, translated_raws_dir, progress_file_path, api_provider_name, 
+                               max_retries_per_chapter, progress_lock): chapter_filename 
+                for chapter_filename in files_to_process
+            }
+            
+            # Process completed tasks
+            for future in as_completed(future_to_chapter):
+                chapter_filename = future_to_chapter[future]
+                try:
+                    success, filename, message = future.result()
+                    
+                    if success and "skipped" not in message.lower():
+                        chapters_processed_this_session += 1
+                        print(f"✓ {filename}: {message}")
+                    elif not success:
+                        print(f"✗ {filename}: {message}")
+                        
+                    # Rate limiting for multi-threaded API calls
+                    if success and OPENROUTER_AVAILABLE and os.getenv("API_KEY") and "placeholder" not in message.lower():
+                        time.sleep(api_call_delay / workers)  # Distribute delay across workers
+                        
+                except Exception as e:
+                    print(f"✗ {chapter_filename}: Unexpected error: {e}")
+
+    print(f"\nTranslation session finished for '{novel_name_from_dir}'.")
+    print(f"Chapters processed (or attempted) in this session: {chapters_processed_this_session}")
+    print(f"Total chapters marked as successfully translated: {len(progress_data['translated_files'])}")
+    if progress_data['failed_translation_attempts']:
+        print("Chapters with persistent translation failures (max retries reached or ongoing):")
+        for fname, count in progress_data['failed_translation_attempts'].items():
+            print(f"  - {fname}: {count} attempts")
+    
+    return chapters_processed_this_session
 
 def translate_novel_chapters(novel_base_directory: str, api_provider_name: str, retry_failed_only: bool = False):
     """
@@ -124,109 +310,7 @@ def translate_novel_chapters(novel_base_directory: str, api_provider_name: str, 
             return
         print(f"Found {len(files_to_process)} total chapter files in '{raws_dir}' for potential processing.")
 
-    chapters_processed_this_session = 0
-    api_call_delay = 5  
-    max_retries_per_chapter = 3
-
-    for chapter_filename in files_to_process:
-        if not retry_failed_only and chapter_filename in progress_data["translated_files"]:
-            # In standard mode, skip already translated files.
-            # In retry_failed_only mode, we always attempt, even if it was somehow in translated_files list.
-            continue
-
-        current_failure_count = progress_data['failed_translation_attempts'].get(chapter_filename, 0)
-        if current_failure_count >= max_retries_per_chapter:
-            print(f"Skipping {chapter_filename}, as it has already failed translation {current_failure_count} times (max: {max_retries_per_chapter}).")
-            continue
-
-        raw_chapter_filepath = os.path.join(raws_dir, chapter_filename)
-        # Check if raw file exists, especially important in retry_failed_only mode
-        if not os.path.exists(raw_chapter_filepath):
-            print(f"  Warning: Raw chapter file {raw_chapter_filepath} not found. Skipping.")
-            # Optionally remove from failed_translation_attempts if source is gone
-            if chapter_filename in progress_data['failed_translation_attempts']:
-                del progress_data['failed_translation_attempts'][chapter_filename]
-            continue 
-            
-        translated_chapter_filepath = os.path.join(translated_raws_dir, chapter_filename)
-
-        print(f"Processing: {chapter_filename} (Attempt {current_failure_count + 1})...")
-        
-        # ... (rest of the try-except block for translation and saving remains largely the same) ...
-        # Ensure the print messages and progress updates are correct for retry logic
-        try:
-            with open(raw_chapter_filepath, 'r', encoding='utf-8') as infile:
-                raw_content = infile.read()
-            
-            # API_KEY check is implicitly handled by openrouter.py now.
-            # We still check OPENROUTER_AVAILABLE for a general capability warning.
-            if not OPENROUTER_AVAILABLE:
-                 print(f"  INFO: Translation module (openrouter.py) not available. Using placeholder for {chapter_filename}.")
-            elif not os.getenv("API_KEY"): # Check if API_KEY is set for an early warning
-                 print(f"  INFO: API_KEY environment variable not set. Using placeholder translation for {chapter_filename}.")
-
-            translated_content = translate(raw_content, api_provider_name=api_provider_name)
-
-            if translated_content.startswith(("Error:", "HTTP error", "Connection error", 
-                                              "Timeout error", "An unexpected error", 
-                                              "An unforeseen error", "Rate limit exceeded")): # Added Rate limit
-                print(f"  Translation API Error for {chapter_filename} (Provider: {api_provider_name}): {translated_content}")
-                progress_data['failed_translation_attempts'][chapter_filename] = current_failure_count + 1
-            elif not OPENROUTER_AVAILABLE or not os.getenv("API_KEY"): # If using placeholder due to no module or no key
-                 with open(translated_chapter_filepath, 'w', encoding='utf-8') as outfile:
-                    # outfile.write(translated_content) # Old way
-                    # New formatting
-                    chapter_num = extract_chapter_number(chapter_filename)
-                    padded_chapter_num = f"{chapter_num:03d}"
-                    placeholder_title = chapter_filename.replace(".md", "")
-                    formatted_output = f"# Chapter -{padded_chapter_num}\\n## {placeholder_title}\\n\\n{translated_content}"
-                    outfile.write(formatted_output)
-                 print(f"  Placeholder translation saved to: {translated_chapter_filepath}")
-                 if chapter_filename not in progress_data["translated_files"]:
-                    progress_data["translated_files"].append(chapter_filename)
-                 if chapter_filename in progress_data['failed_translation_attempts']:
-                    del progress_data['failed_translation_attempts'][chapter_filename] # Clear failure on placeholder "success"
-                 chapters_processed_this_session += 1
-            else: 
-                with open(translated_chapter_filepath, 'w', encoding='utf-8') as outfile:
-                    # outfile.write(translated_content) # Old way
-                    # New formatting
-                    chapter_num = extract_chapter_number(chapter_filename)
-                    padded_chapter_num = f"{chapter_num:03d}"
-                    placeholder_title = chapter_filename.replace(".md", "")
-                    formatted_output = f"# Chapter -{padded_chapter_num}\\n## {placeholder_title}\\n\\n{translated_content}"
-                    outfile.write(formatted_output)
-                
-                print(f"  Successfully translated and saved to: {translated_chapter_filepath}")
-                if chapter_filename not in progress_data["translated_files"]:
-                     progress_data["translated_files"].append(chapter_filename)
-                if chapter_filename in progress_data['failed_translation_attempts']:
-                    del progress_data['failed_translation_attempts'][chapter_filename]
-                chapters_processed_this_session += 1
-
-        except FileNotFoundError: # Should be caught by earlier check, but as a safeguard
-            print(f"  Error: Raw chapter file not found during attempt: {raw_chapter_filepath}. Skipping.")
-        except Exception as e:
-            print(f"  Error processing {chapter_filename}: {e}. Skipping.")
-            progress_data['failed_translation_attempts'][chapter_filename] = current_failure_count + 1 # Record general processing error as a failure
-        
-        try:
-            with open(progress_file_path, 'w', encoding='utf-8') as pf:
-                json.dump(progress_data, pf, indent=4)
-        except IOError as e:
-            print(f"    Warning: Could not save progress to {progress_file_path}: {e}")
-
-        if OPENROUTER_AVAILABLE and os.getenv("API_KEY"): # Only delay if we actually might have made an API call
-            print(f"    Waiting for {api_call_delay} seconds before next API call...")
-            time.sleep(api_call_delay)
-
-    print(f"\nTranslation session finished for '{novel_name_from_dir}'.")
-    print(f"Chapters processed (or attempted) in this session: {chapters_processed_this_session}")
-    print(f"Total chapters marked as successfully translated: {len(progress_data['translated_files'])}")
-    if progress_data['failed_translation_attempts']:
-        print("Chapters with persistent translation failures (max retries reached or ongoing):")
-        for fname, count in progress_data['failed_translation_attempts'].items():
-            print(f"  - {fname}: {count} attempts")
+    chapters_processed_this_session = _process_chapters(files_to_process, retry_failed_only, progress_data, raws_dir, translated_raws_dir, progress_file_path, api_provider_name, novel_name_from_dir, workers=args.workers)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -243,6 +327,11 @@ if __name__ == "__main__":
                         dest="api_provider_name",
                         default="chutes",
                         help="The API provider to use (e.g., 'chutes', 'openrouter'). Defaults to 'chutes'.")
+    
+    parser.add_argument("-w", "--workers",
+                        type=int,
+                        default=1,
+                        help="Number of worker threads for parallel processing (default: 1).")
     
     args = parser.parse_args()
 
