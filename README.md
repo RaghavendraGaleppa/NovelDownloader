@@ -187,3 +187,5 @@ python epub_converter.py -f "Test_Novel/TranslatedRaws" -o "test_novel.epub" -t 
 - Respect website terms of service when scraping
 - Use translation APIs responsibly
 - Ensure you have rights to content being processed 
+
+## CONTACT
