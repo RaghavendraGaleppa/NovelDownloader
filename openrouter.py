@@ -50,10 +50,6 @@ def translate_chinese_to_english(text_to_translate: str, api_provider_name: str 
         return f"Error: API key environment variable '{api_key_env_variable}' not set."
 
     # Print provider name in a box
-    print("\n" + "="*30)
-    print(f"Using API Provider: {api_provider_name.upper()}")
-    print("="*30 + "\n")
-
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
@@ -64,8 +60,6 @@ def translate_chinese_to_english(text_to_translate: str, api_provider_name: str 
     }
 
     for model_name in available_models:
-        print(f"Attempting translation with model: {model_name}")
-
         # The prompt instructs the model to act as a translator.
         # It's crucial to be clear about the source and target languages.
         messages = [

@@ -9,11 +9,11 @@ import threading
 # Attempt to import the translation function and providers
 try:
     from openrouter import translate_chinese_to_english, api_providers # model_names no longer directly needed here
-    OPENROUTER_AVAILABLE = True
+    TRANSLATION_AVAILABLE = True
 except ImportError:
     print("WARNING: openrouter.py not found or its components could not be imported.")
     print("Translation functionality will be disabled; using placeholder.")
-    OPENROUTER_AVAILABLE = False
+    TRANSLATION_AVAILABLE = False
     api_providers = {} # Define as empty if import fails
 
 def extract_chapter_number(filename: str) -> int:
@@ -28,7 +28,7 @@ def translate(text: str, api_provider_name: str) -> str:
     Translates text using the specified provider from OpenRouter API if available,
     otherwise returns original text (placeholder behavior).
     """
-    if OPENROUTER_AVAILABLE:
+    if TRANSLATION_AVAILABLE:
         # The API key is now handled within translate_chinese_to_english based on the provider
         # print(f"    Attempting actual translation for text snippet: '{text[:70].replace('\\n', ' ')}...' with provider: {api_provider_name}")
         translated_text = translate_chinese_to_english(text, api_provider_name=api_provider_name)
@@ -42,7 +42,7 @@ def translate(text: str, api_provider_name: str) -> str:
         return translated_text
     else:
         # This warning is already printed at import time
-        # print("    Warning: OpenRouter module not available, returning original text.")
+        # print("    Warning: Translation module not available, returning original text.")
         return text # Placeholder behavior
 
 def _ensure_directory_exists(dir_path: str) -> bool:
@@ -74,6 +74,9 @@ def _process_single_chapter(chapter_filename, retry_failed_only, progress_data, 
     Returns:
         tuple: (success: bool, chapter_filename: str, message: str)
     """
+    # Start timing
+    start_time = time.time()
+    
     with progress_lock:
         if not retry_failed_only and chapter_filename in progress_data["translated_files"]:
             return (True, chapter_filename, "Already translated (skipped)")
@@ -92,22 +95,28 @@ def _process_single_chapter(chapter_filename, retry_failed_only, progress_data, 
     translated_chapter_filepath = os.path.join(translated_raws_dir, chapter_filename)
 
     try:
+        print(f"📖 Starting translation of {chapter_filename} using {api_provider_name}...")
+
         with open(raw_chapter_filepath, 'r', encoding='utf-8') as infile:
             raw_content = infile.read()
         
         # API_KEY check is implicitly handled by openrouter.py now.
-        if not OPENROUTER_AVAILABLE:
+        if not TRANSLATION_AVAILABLE:
             info_msg = "Translation module not available, using placeholder"
         elif not os.getenv("API_KEY"):
             info_msg = "API_KEY not set, using placeholder"
         else:
             info_msg = None
 
+        # Time the actual translation
+        translation_start = time.time()
         translated_content = translate(raw_content, api_provider_name=api_provider_name)
+        translation_time = time.time() - translation_start
 
         if translated_content.startswith(("Error:", "HTTP error", "Connection error", 
                                           "Timeout error", "An unexpected error", 
                                           "An unforeseen error", "Rate limit exceeded")):
+            total_time = time.time() - start_time
             with progress_lock:
                 progress_data['failed_translation_attempts'][chapter_filename] = current_failure_count + 1
                 try:
@@ -139,15 +148,24 @@ def _process_single_chapter(chapter_filename, retry_failed_only, progress_data, 
             except IOError:
                 pass
         
-        success_msg = "Successfully translated"
+        total_time = time.time() - start_time
+        
+        success_msg = f"Successfully translated in {translation_time:.2f}s (Total: {total_time:.2f}s)"
         if info_msg:
-            success_msg = f"{info_msg}, saved as placeholder"
+            success_msg = f"{info_msg}, saved as placeholder in {total_time:.2f}s"
+            print(f"⚠️  PLACEHOLDER: {chapter_filename} - {info_msg} (Total: {total_time:.2f}s)")
+        else:
+            print(f"✅ SUCCESS: {chapter_filename} - Translation completed in {translation_time:.2f}s (Total: {total_time:.2f}s)")
         
         return (True, chapter_filename, success_msg)
 
     except FileNotFoundError:
+        total_time = time.time() - start_time
+        print(f"❌ FAILED: {chapter_filename} - Raw file not found (Total: {total_time:.2f}s)")
         return (False, chapter_filename, "Raw file not found during processing")
     except Exception as e:
+        total_time = time.time() - start_time
+        print(f"❌ FAILED: {chapter_filename} - Processing error after {total_time:.2f}s: {e}")
         with progress_lock:
             progress_data['failed_translation_attempts'][chapter_filename] = current_failure_count + 1
             try:
@@ -193,9 +211,11 @@ def _process_chapters(files_to_process, retry_failed_only, progress_data, raws_d
                 print(f"✓ {filename}: {message}")
             elif not success:
                 print(f"✗ {filename}: {message}")
+            else:
+                print(f"{success} || {filename}: {message}")
             
-            # Rate limiting for API calls
-            if success and OPENROUTER_AVAILABLE and os.getenv("API_KEY") and "placeholder" not in message.lower():
+            # Rate limiting for API calls - works for all providers (chutes, openrouter, etc.)
+            if success and TRANSLATION_AVAILABLE and os.getenv("API_KEY") and "placeholder" not in message.lower():
                 print(f"    Waiting {api_call_delay} seconds before next API call...")
                 time.sleep(api_call_delay)
     else:
@@ -223,8 +243,8 @@ def _process_chapters(files_to_process, retry_failed_only, progress_data, raws_d
                     elif not success:
                         print(f"✗ {filename}: {message}")
                         
-                    # Rate limiting for multi-threaded API calls
-                    if success and OPENROUTER_AVAILABLE and os.getenv("API_KEY") and "placeholder" not in message.lower():
+                    # Rate limiting for multi-threaded API calls - works for all providers
+                    if success and TRANSLATION_AVAILABLE and os.getenv("API_KEY") and "placeholder" not in message.lower():
                         time.sleep(api_call_delay / workers)  # Distribute delay across workers
                         
                 except Exception as e:
@@ -338,7 +358,7 @@ if __name__ == "__main__":
     # The API key is now sourced by openrouter.py based on the provider.
     # We just check if API_KEY is set for a general warning if real translation is expected.
     print(f"Selected API Provider: {args.api_provider_name}")
-    if OPENROUTER_AVAILABLE and not os.getenv("API_KEY"):
+    if TRANSLATION_AVAILABLE and not os.getenv("API_KEY"):
         print("WARNING: API_KEY environment variable not set.")
         print(f"Ensure API_KEY is set to the correct key for the '{args.api_provider_name}' provider if you expect real translations.")
         print("Proceeding, but will use placeholder translation if API calls fail due to missing key.")
