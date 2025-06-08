@@ -1,21 +1,22 @@
 # Novel Translation Pipeline
 
-A complete Python-based pipeline for scraping, translating, and converting Chinese novels into EPUB format. This project automates the entire workflow from web scraping to final EPUB generation.
+A complete Python-based pipeline for scraping, translating, and converting Chinese novels into EPUB format. This project automates the entire workflow from web scraping to final EPUB generation using a unified command-line interface.
 
 ## 🚀 Features
 
-- **Web Scraping**: Extract novel chapters from Chinese novel websites
+- **Unified Tool Interface**: Single `tool.py` command for all operations
+- **Multi-Website Support**: Extract chapters from 69shu.com, 1qxs.com, and variants
 - **Progress Tracking**: Resume scraping and translation from where you left off
-- **AI Translation**: Translate Chinese text to English using OpenRouter API
+- **AI Translation**: Translate Chinese text to English using multiple AI providers
 - **EPUB Generation**: Convert translated chapters into professional EPUB format
-- **Batch Processing**: Handle multiple chapters efficiently with retry logic
-- **Custom Output Paths**: Flexible directory structure for organized output
+- **Parallel Processing**: Multi-threaded translation for faster processing
+- **Robust Error Handling**: Automatic retries and comprehensive error recovery
 
 ## 📋 Prerequisites
 
 - Python 3.8 or higher
 - Pandoc (for EPUB conversion)
-- OpenRouter API key (for translation)
+- API key for translation service (OpenRouter, Chutes, etc.)
 
 ## 🛠️ Installation
 
@@ -37,155 +38,257 @@ A complete Python-based pipeline for scraping, translating, and converting Chine
 
 4. **Set up API key** (for translation):
    ```bash
-   export API_KEY="your-openrouter-api-key"
+   export API_KEY="your-api-key"
    ```
 
-## 📚 Usage Workflow
+## 🎯 Quick Start
 
-Follow these steps in order to complete the full pipeline:
-
-### Step 1: Parse/Scrape Chapters
-
-Extract novel chapters from websites using the parser:
+The unified `tool.py` provides three main commands for the complete workflow:
 
 ```bash
-# Start a new scrape
-python parse_chapter.py -n "https://example.com/chapter1" "Novel Title"
+# Show help and examples
+python tool.py
 
-# Resume from progress file
-python parse_chapter.py -p "Novel_Title/Novel_Title_progress.json"
-
-# Limit chapters per session
-python parse_chapter.py -n "https://example.com/chapter1" "Novel Title" -m 50
-
-# Use custom output directory
-python parse_chapter.py -n "https://example.com/chapter1" "Novel Title" -o "/path/to/output"
+# Individual command help
+python tool.py scrape --help
+python tool.py translate --help
+python tool.py convert --help
 ```
 
-**Output**: Creates `Novel_Title/Raws/` directory with `Chapter_XX.md` files
+## 📚 Complete Workflow
 
-#### Parser Arguments:
+### Option 1: Step-by-Step Workflow
+
+```bash
+# Step 1: Scrape novel chapters
+python tool.py scrape -n "https://www.69shu.com/book/123.htm" "Cultivation Master" -m 100
+
+# Step 2: Translate chapters to English
+python tool.py translate -n "./Novels/Cultivation_Master" -p chutes -w 2
+
+# Step 3: Convert to EPUB
+python tool.py convert -f "./Novels/Cultivation_Master/Cultivation_Master-English" -o "cultivation_master.epub" -t "Cultivation Master" -a "Unknown Author"
+```
+
+### Option 2: One-Line Examples
+
+```bash
+# Quick scraping (first 10 chapters)
+python tool.py scrape -n "https://www.1qxs.com/novel/456" "Test Novel" -m 10
+
+# Translate with multiple workers
+python tool.py translate -n "./Novels/Test_Novel" -p openrouter -w 3
+
+# Create EPUB with custom metadata
+python tool.py convert -f "./Novels/Test_Novel/Test_Novel-English" -o "test_novel.epub" -t "Test Novel" -a "Great Author"
+```
+
+## 🔧 Detailed Command Usage
+
+### 1. Scrape Command
+Extract novel chapters from supported websites.
+
+**Supported Sites:**
+- 69shu.com variants (69shu, shu69, 69shuba)
+- 1qxs.com
+
+```bash
+python tool.py scrape -n "URL" "TITLE" [-m MAX_CHAPTERS] [-o OUTPUT_PATH]
+
+# Examples:
+python tool.py scrape -n "https://www.69shu.com/book/123.htm" "My Novel"
+python tool.py scrape -n "https://www.1qxs.com/novel/456" "Another Novel" -m 50 -o "./CustomPath"
+```
+
+**Options:**
 - `-n, --new-scrape`: Start new scrape (requires URL and title)
-- `-p, --progress-file`: Resume from progress file
 - `-m, --max-chapters`: Maximum chapters per session (default: 1000)
-- `-o, --output-path`: Custom output directory path
+- `-o, --output-path`: Custom output directory (default: ./Novels/novel_title)
 
-### Step 2: Translate Chapters
+### 2. Translate Command
+Translate scraped chapters using AI APIs.
 
-Translate the scraped chapters from Chinese to English:
+**Supported Providers:**
+- `chutes` (default)
+- `openrouter`
 
 ```bash
-# Translate all chapters in a novel directory
-python translator.py -n "Novel_Title" -p "openrouter"
+python tool.py translate -n NOVEL_DIR [-r] [-p PROVIDER] [-w WORKERS]
 
-# Use different API provider
-python translator.py -n "Novel_Title" -p "chutes"
-
-# Retry only failed translations
-python translator.py -n "Novel_Title" -p "openrouter" -r
+# Examples:
+python tool.py translate -n "./Novels/My_Novel"
+python tool.py translate -n "./Novels/My_Novel" -p openrouter -w 3
+python tool.py translate -n "./Novels/My_Novel" -r  # Retry failed only
 ```
 
-**Output**: Creates `Novel_Title/TranslatedRaws/` directory with translated `Chapter_XX.md` files
-
-#### Translator Arguments:
-- `-n, --novel-base-dir`: Novel directory containing 'Raws' folder
-- `-p, --provider`: API provider (default: "chutes")
+**Options:**
+- `-n, --novel-base-dir`: Novel directory containing Raws subdirectory
 - `-r, --retry-failed`: Only retry previously failed translations
+- `-p, --provider`: API provider (default: chutes)
+- `-w, --workers`: Number of worker threads (default: 1)
 
-#### Supported API Providers:
-- `openrouter`: OpenRouter API
-- `chutes`: Chutes API
-- Additional providers can be configured in `openrouter.py`
-
-### Step 3: Convert to EPUB
-
-Convert translated chapters into a single EPUB file:
+### 3. Convert Command
+Convert translated markdown files to EPUB format.
 
 ```bash
-# Basic EPUB conversion
-python epub_converter.py -f "Novel_Title/TranslatedRaws" -o "novel.epub"
+python tool.py convert -f FOLDER_PATH -o OUTPUT.epub [-t TITLE] [-a AUTHOR]
 
-# With custom metadata
-python epub_converter.py -f "Novel_Title/TranslatedRaws" -o "novel.epub" -t "My Novel Title" -a "Author Name"
+# Examples:
+python tool.py convert -f "./Novels/My_Novel/My_Novel-English" -o "my_novel.epub"
+python tool.py convert -f "./Novels/My_Novel/My_Novel-English" -o "my_novel.epub" -t "My Awesome Novel" -a "Great Author"
 ```
 
-**Output**: Creates `novel.epub` file ready for reading
-
-#### EPUB Converter Arguments:
+**Options:**
 - `-f, --folder-path`: Path to folder with translated markdown files
 - `-o, --output-name`: Output EPUB filename
 - `-t, --title`: Book title for metadata (default: "My Awesome Book")
 - `-a, --author`: Author name for metadata (default: "Unknown Author")
 
-## 📁 Directory Structure
+## 📁 Project Structure
 
-After running the full pipeline, your directory structure will look like:
+After running the complete workflow:
 
 ```
-Novel_Title/
-├── Raws/                          # Original scraped chapters
-│   ├── Chapter_001.md
-│   ├── Chapter_002.md
-│   └── ...
-├── TranslatedRaws/                # Translated chapters
-│   ├── Chapter_001.md
-│   ├── Chapter_002.md
-│   └── ...
-├── Novel_Title_progress.json      # Scraping progress
-├── Novel_Title_translation_progress.json  # Translation progress
-└── novel.epub                     # Final EPUB (if generated here)
+project-root/
+├── tool.py                        # Unified command-line interface
+├── src/                           # Source code modules
+│   ├── scraping/
+│   │   ├── parse_chapter.py       # Web scraping logic
+│   │   └── extraction_backends.py # Website-specific extractors
+│   ├── translation/
+│   │   ├── translator.py          # Translation logic
+│   │   └── openrouter.py         # API integration
+│   └── conversion/
+│       ├── epub_converter.py      # EPUB generation
+│       └── merge_chapters.py      # Chapter merging utilities
+├── Novels/                        # Output directory
+│   └── Novel_Title/
+│       ├── Novel_Title-Raws/      # Original Chinese chapters
+│       │   ├── Chapter_001.md
+│       │   ├── Chapter_002.md
+│       │   └── ...
+│       ├── Novel_Title-English/   # Translated English chapters
+│       │   ├── Chapter_001.md
+│       │   ├── Chapter_002.md
+│       │   └── ...
+│       ├── Novel_Title_progress.json              # Scraping progress
+│       └── Novel_Title_translation_progress.json  # Translation progress
+└── scripts/                       # Utility scripts
+    └── *.lua                      # Pandoc filters
 ```
 
 ## 🔧 Configuration
 
 ### Environment Variables
-- `API_KEY`: Your OpenRouter API key for translation services
+```bash
+# Required for translation
+export API_KEY="your-api-key"
 
-### Translation Providers
-Configure additional providers in `openrouter.py`:
-- Add provider configurations
-- Set API endpoints and authentication
-- Customize translation parameters
+# Optional: Custom output directory
+export NOVELS_DIR="/path/to/novels"
+```
 
-## 🚨 Error Handling
+### API Providers
+Configure in `src/translation/openrouter.py`:
+- **Chutes API**: Default provider
+- **OpenRouter API**: Alternative provider
+- Add custom providers as needed
 
-The pipeline includes robust error handling:
+## 🚨 Error Handling & Recovery
 
-- **Scraping**: Retries failed requests, saves progress
-- **Translation**: Tracks failed attempts, supports retry-only mode
-- **EPUB**: Validates input files, provides clear error messages
+The pipeline includes comprehensive error handling:
 
-## 📖 Example Complete Workflow
+### Scraping
+- **SSL Issues**: Automatic SSL bypass for problematic sites
+- **Rate Limiting**: Built-in delays between requests
+- **Progress Tracking**: Resume from last successful chapter
+- **Network Errors**: Automatic retries with exponential backoff
+
+### Translation
+- **API Failures**: Tracks failed attempts per chapter
+- **Rate Limiting**: Configurable delays between API calls
+- **Retry Logic**: Retry-only mode for failed translations
+- **Multi-threading**: Parallel processing with error isolation
+
+### EPUB Conversion
+- **File Validation**: Checks for required input files
+- **Pandoc Errors**: Clear error messages for missing dependencies
+- **Natural Sorting**: Correct chapter ordering (1, 2, 10 vs 1, 10, 2)
+
+## 📖 Advanced Usage
+
+### Resume Operations
+All operations support resuming from progress files:
 
 ```bash
-# 1. Scrape a novel (limit to 10 chapters for testing)
-python parse_chapter.py -n "https://example.com/novel/chapter1" "Test Novel" -m 10
+# Scraping automatically resumes if progress file exists
+python tool.py scrape -n "https://example.com" "Novel Title"
 
-# 2. Translate the chapters
-python translator.py -n "Test_Novel" -p "openrouter"
+# Translation tracks progress automatically
+python tool.py translate -n "./Novels/Novel_Title"
 
-# 3. Convert to EPUB
-python epub_converter.py -f "Test_Novel/TranslatedRaws" -o "test_novel.epub" -t "Test Novel" -a "Original Author"
+# Retry only failed translations
+python tool.py translate -n "./Novels/Novel_Title" -r
+```
+
+### Custom Output Paths
+```bash
+# Custom scraping output
+python tool.py scrape -n "URL" "Title" -o "/custom/path"
+
+# Custom EPUB output
+python tool.py convert -f "./input/folder" -o "/custom/path/novel.epub"
+```
+
+### Parallel Processing
+```bash
+# Use multiple workers for faster translation
+python tool.py translate -n "./Novels/Novel_Title" -w 4
+
+# Balance between speed and API rate limits
+python tool.py translate -n "./Novels/Novel_Title" -w 2 -p openrouter
 ```
 
 ## 🔍 Troubleshooting
 
-### Common Issues:
+### Common Issues
 
-1. **Pandoc not found**: Install Pandoc system-wide
-2. **API key errors**: Ensure `API_KEY` environment variable is set
-3. **Rate limiting**: Translation script includes automatic delays
-4. **File not found**: Check directory paths and file permissions
+1. **Import Errors**: Ensure you're running from the project root directory
+2. **API Key Errors**: Set `API_KEY` environment variable
+3. **Pandoc Not Found**: Install Pandoc system-wide for EPUB conversion
+4. **SSL Errors**: The scraper automatically handles SSL issues
+5. **Rate Limiting**: Increase delays or reduce worker count
 
-### Logs and Progress:
-- Progress files track completion status
-- Console output shows detailed processing information
-- Failed operations are logged for retry
+### Debug Mode
+```bash
+# Enable verbose output (if implemented)
+python tool.py scrape -n "URL" "Title" --verbose
+
+# Check progress files for debugging
+cat "./Novels/Novel_Title/Novel_Title_progress.json"
+```
+
+## 💡 Tips & Best Practices
+
+1. **Start Small**: Test with `-m 10` for first attempts
+2. **Monitor Progress**: Check progress files for status
+3. **API Limits**: Respect rate limits, use appropriate delays
+4. **Backup**: Keep backups of progress files for long-running operations
+5. **Resource Usage**: Balance worker count with system resources
 
 ## ⚠️ Disclaimer
 
 - Respect website terms of service when scraping
-- Use translation APIs responsibly
-- Ensure you have rights to content being processed 
+- Use translation APIs responsibly within usage limits
+- Ensure you have rights to process the content
+- This tool is for educational and personal use
+
+## 🆘 Support
+
+For issues or questions:
+1. Check the troubleshooting section above
+2. Review console output for error messages
+3. Examine progress files for operation status
+4. Ensure all dependencies are properly installed
 
 ## CONTACT
