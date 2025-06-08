@@ -358,4 +358,10 @@ For issues or questions:
 3. Examine progress files for operation status
 4. Ensure all dependencies are properly installed
 
-## CONTACT
+## ☕ Support the Project
+
+If this project has been helpful to you, consider supporting its development:
+
+[![Buy me a coffee](https://img.shields.io/badge/☕-Buy%20me%20a%20coffee-orange?style=for-the-badge&logo=buy-me-a-coffee&logoColor=white)](https://coff.ee/raghavendragaleppa)
+
+Your support helps maintain and improve this open-source novel translation pipeline. Thank you! 🙏
