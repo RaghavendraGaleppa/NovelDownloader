@@ -204,6 +204,21 @@ export API_KEY="your-api-key"
 export NOVELS_DIR="/path/to/novels"
 ```
 
+### API Validation
+The translation system automatically validates your API configuration before starting any translation work:
+
+#### Validation Checks
+1. **API Key Verification**: Ensures your API key is set and not empty
+2. **Provider Configuration**: Validates the specified API provider exists and is configured
+3. **Connectivity Test**: Performs a simple API call to verify the service is accessible
+4. **Clear Error Messages**: Provides specific guidance on how to fix configuration issues
+
+#### Common Validation Errors
+- **API key not set**: `export API_KEY="your-api-key-here"`
+- **Empty API key**: Check that your API key value is correct
+- **Unknown provider**: Use `chutes` or `openrouter` as provider names
+- **Connectivity issues**: Check internet connection and API service status
+
 ### API Providers
 Configure in `src/translation/openrouter.py`:
 - **Chutes API**: Default provider
@@ -225,6 +240,7 @@ The pipeline includes comprehensive error handling:
 - **Rate Limiting**: Configurable delays between API calls
 - **Retry Logic**: Retry-only mode for failed translations
 - **Multi-threading**: Parallel processing with error isolation
+- **API Validation**: Automatic validation of API keys and connectivity before starting translation
 
 ### EPUB Conversion
 - **File Validation**: Checks for required input files

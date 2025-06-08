@@ -21,6 +21,106 @@ except ImportError:
     TRANSLATION_AVAILABLE = False
     api_providers = {} # Define as empty if import fails
 
+def validate_api_configuration(api_provider_name: str) -> tuple[bool, str]:
+    """
+    Validates API configuration and connectivity.
+    
+    Args:
+        api_provider_name: The API provider to validate
+        
+    Returns:
+        tuple: (is_valid: bool, error_message: str or None)
+    """
+    if not TRANSLATION_AVAILABLE:
+        return False, "Translation module not available"
+    
+    # Check if provider exists
+    if api_provider_name not in api_providers:
+        available_providers = ', '.join(api_providers.keys())
+        return False, f"Unknown API provider '{api_provider_name}'. Available providers: {available_providers}"
+    
+    provider_config = api_providers[api_provider_name]
+    api_key_env_var = provider_config.get("api_key_env_var", "API_KEY")
+    
+    # Check if API key is set and not empty
+    api_key = os.getenv(api_key_env_var)
+    if not api_key:
+        return False, f"API key environment variable '{api_key_env_var}' is not set"
+    
+    if not api_key.strip():
+        return False, f"API key environment variable '{api_key_env_var}' is empty"
+    
+    return True, None
+
+def test_api_connectivity(api_provider_name: str) -> tuple[bool, str]:
+    """
+    Tests API connectivity with a simple hello message.
+    
+    Args:
+        api_provider_name: The API provider to test
+        
+    Returns:
+        tuple: (is_connected: bool, result_message: str)
+    """
+    test_message = "Hello"
+    
+    console.print(f"🔍 Testing API connectivity for '{api_provider_name}'...", style="blue")
+    
+    try:
+        result = translate_chinese_to_english(test_message, api_provider_name=api_provider_name)
+        
+        # Check if the result indicates an error
+        if result.startswith(("Error:", "HTTP error", "Connection error", 
+                             "Timeout error", "An unexpected error", 
+                             "An unforeseen error", "Rate limit exceeded")):
+            return False, f"API test failed: {result}"
+        
+        console.print(f"✅ API connectivity test successful for '{api_provider_name}'", style="green")
+        return True, "API connectivity test successful"
+        
+    except Exception as e:
+        return False, f"API test failed with exception: {e}"
+
+def perform_api_validation(api_provider_name: str) -> bool:
+    """
+    Performs complete API validation including configuration and connectivity checks.
+    
+    Args:
+        api_provider_name: The API provider to validate
+        
+    Returns:
+        bool: True if validation passes, False otherwise
+    """
+    console.print(f"\n🔧 Validating API configuration for '{api_provider_name}'...", style="bold blue")
+    
+    # Step 1: Validate configuration
+    config_valid, config_error = validate_api_configuration(api_provider_name)
+    if not config_valid:
+        console.print(f"❌ API Configuration Error: {config_error}", style="red")
+        console.print("\n💡 To fix this:", style="yellow")
+        if "not set" in config_error or "empty" in config_error:
+            api_key_env_var = api_providers.get(api_provider_name, {}).get("api_key_env_var", "API_KEY")
+            console.print(f"   1. Set your API key: export {api_key_env_var}=\"your-api-key-here\"", style="cyan")
+            console.print(f"   2. Restart your terminal or source your environment", style="cyan")
+        elif "Unknown API provider" in config_error:
+            console.print(f"   1. Use a valid provider name from the available options", style="cyan")
+        return False
+    
+    console.print("✅ API configuration is valid", style="green")
+    
+    # Step 2: Test connectivity
+    connectivity_valid, connectivity_message = test_api_connectivity(api_provider_name)
+    if not connectivity_valid:
+        console.print(f"❌ API Connectivity Error: {connectivity_message}", style="red")
+        console.print("\n💡 Possible solutions:", style="yellow")
+        console.print("   1. Check your internet connection", style="cyan")
+        console.print("   2. Verify your API key is correct and has sufficient credits", style="cyan")
+        console.print("   3. Check if the API service is currently available", style="cyan")
+        return False
+    
+    console.print("✅ API validation completed successfully", style="bold green")
+    return True
+
 def extract_chapter_number(filename: str) -> int:
     """Extracts the chapter number from a filename like 'Chapter_123.md'."""
     match = re.search(r'Chapter_(\d+)\.md', filename)
@@ -432,6 +532,12 @@ def translate_novel_chapters(novel_base_directory: str, api_provider_name: str, 
     Maintains progress and can optionally only retry previously failed translations.
     """
     novel_name_from_dir = os.path.basename(os.path.normpath(novel_base_directory))
+
+    # Perform API validation before starting translation
+    if not perform_api_validation(api_provider_name):
+        console.print("\n❌ API validation failed. Cannot proceed with translation.", style="bold red")
+        console.print("Please fix the API configuration issues above and try again.", style="yellow")
+        return
 
     raws_dir = os.path.join(novel_base_directory, f"{novel_name_from_dir}-Raws")
     translated_raws_dir = os.path.join(novel_base_directory, f"{novel_name_from_dir}-English")
