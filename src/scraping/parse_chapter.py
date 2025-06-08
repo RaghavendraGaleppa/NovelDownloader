@@ -439,7 +439,7 @@ def main(args: argparse.Namespace):
         current_url = next_url_from_scraper 
 
         if current_url:
-            sleep_duration = 0.1
+            sleep_duration = random.uniform(1, 3)
             print(f"Sleeping for {sleep_duration:.2f} seconds before next chapter...")
             time.sleep(sleep_duration)
     
