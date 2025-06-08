@@ -456,19 +456,29 @@ def _process_chapters(files_to_process, retry_failed_only, progress_data, raws_d
     chapters_processed_this_session = 0
     progress_lock = threading.Lock()
     
+    # Start session timing
+    session_start_time = time.time()
+    successful_chapter_times = []  # Track timing for successfully translated chapters
+    
     if workers == 1:
         # Single-threaded processing (original behavior)
         for chapter_filename in files_to_process:
+            chapter_start_time = time.time()
             success, filename, message = _process_single_chapter(
                 chapter_filename, retry_failed_only, progress_data, raws_dir, translated_raws_dir,
                 progress_file_path, api_provider_name, max_retries_per_chapter, progress_lock, use_status_spinner=True
             )
+            chapter_end_time = time.time()
+            chapter_duration = chapter_end_time - chapter_start_time
             
             # Ensure message is never None for string operations
             message = message or ""
             
             if success and "skipped" not in message.lower():
                 chapters_processed_this_session += 1
+                # Only track timing for successful real translations (not skipped or placeholder)
+                if "placeholder" not in message.lower():
+                    successful_chapter_times.append(chapter_duration)
             
             # Rate limiting for API calls - only apply for successful real translations
             # Skip rate limiting for: failures, skipped chapters, or placeholder translations
@@ -484,17 +494,24 @@ def _process_chapters(files_to_process, retry_failed_only, progress_data, raws_d
         console.print(f"🚀 Starting translation with {workers} workers...", style="bold blue")
         
         with ThreadPoolExecutor(max_workers=workers) as executor:
-            # Submit all tasks
-            future_to_chapter = {
-                executor.submit(_process_single_chapter, chapter_filename, retry_failed_only, progress_data, 
-                               raws_dir, translated_raws_dir, progress_file_path, api_provider_name, 
-                               max_retries_per_chapter, progress_lock, use_status_spinner=False): chapter_filename 
-                for chapter_filename in files_to_process
-            }
+            # Submit all tasks with timing
+            future_to_chapter = {}
+            chapter_start_times = {}
+            
+            for chapter_filename in files_to_process:
+                chapter_start_time = time.time()
+                future = executor.submit(_process_single_chapter, chapter_filename, retry_failed_only, progress_data, 
+                                       raws_dir, translated_raws_dir, progress_file_path, api_provider_name, 
+                                       max_retries_per_chapter, progress_lock, use_status_spinner=False)
+                future_to_chapter[future] = chapter_filename
+                chapter_start_times[future] = chapter_start_time
             
             # Process completed tasks
             for future in as_completed(future_to_chapter):
                 chapter_filename = future_to_chapter[future]
+                chapter_start_time = chapter_start_times[future]
+                chapter_duration = time.time() - chapter_start_time
+                
                 try:
                     success, filename, message = future.result()
                     
@@ -503,6 +520,9 @@ def _process_chapters(files_to_process, retry_failed_only, progress_data, raws_d
                     
                     if success and "skipped" not in message.lower():
                         chapters_processed_this_session += 1
+                        # Only track timing for successful real translations (not skipped or placeholder)
+                        if "placeholder" not in message.lower():
+                            successful_chapter_times.append(chapter_duration)
                         
                     # Rate limiting for multi-threaded API calls - only apply for successful real translations
                     # Skip rate limiting for: failures, skipped chapters, or placeholder translations
@@ -516,9 +536,27 @@ def _process_chapters(files_to_process, retry_failed_only, progress_data, raws_d
                 except Exception as e:
                     console.print(f"❌ {chapter_filename}: Unexpected error: {e}", style="red")
 
+    # Calculate session timing and statistics
+    session_end_time = time.time()
+    total_session_time = session_end_time - session_start_time
+    
     console.print(f"\n🎉 Translation session finished for '{novel_name_from_dir}'.", style="bold green")
     console.print(f"📊 Chapters processed (or attempted) in this session: {chapters_processed_this_session}", style="blue")
     console.print(f"📋 Total chapters marked as successfully translated: {len(progress_data['translated_files'])}", style="blue")
+    
+    # Timing statistics
+    console.print(f"⏱️  Session timing:", style="bold cyan")
+    console.print(f"   • Total session time: {total_session_time:.1f} seconds ({total_session_time/60:.1f} minutes)", style="cyan")
+    
+    if successful_chapter_times:
+        avg_time_per_chapter = sum(successful_chapter_times) / len(successful_chapter_times)
+        console.print(f"   • Chapters successfully translated: {len(successful_chapter_times)}", style="cyan")
+        console.print(f"   • Average time per chapter: {avg_time_per_chapter:.1f} seconds", style="cyan")
+        console.print(f"   • Fastest chapter: {min(successful_chapter_times):.1f} seconds", style="cyan")
+        console.print(f"   • Slowest chapter: {max(successful_chapter_times):.1f} seconds", style="cyan")
+    else:
+        console.print(f"   • No chapters were successfully translated in this session", style="dim cyan")
+    
     if progress_data['failed_translation_attempts']:
         console.print("⚠️  Chapters with persistent translation failures:", style="yellow")
         for fname, count in progress_data['failed_translation_attempts'].items():
