@@ -59,13 +59,14 @@ The scraper supports multiple Chinese novel websites through specialized extract
 
 ## 🎯 Quick Start
 
-The unified `tool.py` provides three main commands for the complete workflow:
+The unified `tool.py` provides four main commands for the complete workflow:
 
 ```bash
 # Show help and examples
 python tool.py
 
 # Individual command help
+python tool.py validate --help
 python tool.py scrape --help
 python tool.py translate --help
 python tool.py convert --help
@@ -76,6 +77,9 @@ python tool.py convert --help
 ### Option 1: Step-by-Step Workflow
 
 ```bash
+# Step 0: Validate API configuration (recommended)
+python tool.py validate -p chutes
+
 # Step 1: Scrape novel chapters
 python tool.py scrape -n "https://www.69shu.com/book/123.htm" "Cultivation Master" -m 100
 
@@ -89,6 +93,9 @@ python tool.py convert -f "./Novels/Cultivation_Master/Cultivation_Master-Englis
 ### Option 2: One-Line Examples
 
 ```bash
+# Validate API before starting
+python tool.py validate -p openrouter
+
 # Quick scraping (first 10 chapters)
 python tool.py scrape -n "https://www.1qxs.com/novel/456" "Test Novel" -m 10
 
@@ -100,6 +107,26 @@ python tool.py convert -f "./Novels/Test_Novel/Test_Novel-English" -o "test_nove
 ```
 
 ## 🔧 Detailed Command Usage
+
+### 0. Validate Command
+Test API configuration and connectivity before starting translation work.
+
+```bash
+python tool.py validate [-p PROVIDER]
+
+# Examples:
+python tool.py validate  # Test default (chutes) provider
+python tool.py validate -p openrouter  # Test OpenRouter provider
+```
+
+**Options:**
+- `-p, --provider`: API provider to validate (default: chutes)
+
+**What it checks:**
+- API key environment variable is set and not empty
+- Provider configuration exists and is valid
+- API connectivity with a simple test call
+- Provides clear error messages and solutions
 
 ### 1. Scrape Command
 Extract novel chapters from supported websites.
@@ -135,6 +162,7 @@ python tool.py translate -n NOVEL_DIR [-r] [-p PROVIDER] [-w WORKERS]
 python tool.py translate -n "./Novels/My_Novel"
 python tool.py translate -n "./Novels/My_Novel" -p openrouter -w 3
 python tool.py translate -n "./Novels/My_Novel" -r  # Retry failed only
+python tool.py translate -n "./Novels/My_Novel" --skip-validation  # Skip API validation (not recommended)
 ```
 
 **Options:**
@@ -142,6 +170,7 @@ python tool.py translate -n "./Novels/My_Novel" -r  # Retry failed only
 - `-r, --retry-failed`: Only retry previously failed translations
 - `-p, --provider`: API provider (default: chutes)
 - `-w, --workers`: Number of worker threads (default: 1)
+- `--skip-validation`: Skip API validation before starting (not recommended)
 
 ### 3. Convert Command
 Convert translated markdown files to EPUB format.

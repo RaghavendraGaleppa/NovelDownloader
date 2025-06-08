@@ -17,7 +17,7 @@ import os
 
 # Import the main functions from our organized modules
 from src.scraping.parse_chapter import main as scrape_main
-from src.translation.translator import translate_novel_chapters
+from src.translation.translator import translate_novel_chapters, perform_api_validation
 from src.conversion.epub_converter import convert_folder_md_to_epub
 
 
@@ -34,6 +34,22 @@ def cmd_scrape(args):
     
     # Call the main scraping function
     scrape_main(scrape_args)
+
+
+def cmd_validate(args):
+    """Handle the validate subcommand"""
+    print("🔧 Starting API validation...")
+    
+    # Import the validation function
+    from src.translation.translator import perform_api_validation
+    
+    # Perform validation
+    if perform_api_validation(args.provider):
+        print(f"\n✅ API validation successful for provider '{args.provider}'!")
+        print("You can now proceed with translation operations.")
+    else:
+        print(f"\n❌ API validation failed for provider '{args.provider}'.")
+        print("Please fix the issues above before attempting translation.")
 
 
 def cmd_translate(args):
@@ -61,7 +77,8 @@ def cmd_translate(args):
     translate_novel_chapters(
         novel_base_directory=args.novel_base_directory,
         api_provider_name=args.provider,
-        retry_failed_only=args.retry_failed
+        retry_failed_only=args.retry_failed,
+        skip_validation=args.skip_validation
     )
 
 
@@ -89,7 +106,7 @@ def main():
     subparsers = parser.add_subparsers(
         dest='command',
         help='Available commands',
-        metavar='{scrape,translate,convert}'
+        metavar='{scrape,translate,convert,validate}'
     )
     
     # ===== SCRAPE SUBCOMMAND =====
@@ -119,6 +136,20 @@ def main():
     )
     scrape_parser.set_defaults(func=cmd_scrape)
     
+    # ===== VALIDATE SUBCOMMAND =====
+    validate_parser = subparsers.add_parser(
+        'validate',
+        help='Validate API configuration and connectivity',
+        description='Test API key and provider connectivity without starting translation',
+        formatter_class=argparse.RawTextHelpFormatter
+    )
+    validate_parser.add_argument(
+        '-p', '--provider',
+        default='chutes',
+        help='The API provider to validate (e.g., "chutes", "openrouter"). Default: chutes'
+    )
+    validate_parser.set_defaults(func=cmd_validate)
+    
     # ===== TRANSLATE SUBCOMMAND =====
     translate_parser = subparsers.add_parser(
         'translate',
@@ -147,6 +178,11 @@ def main():
         type=int,
         default=1,
         help='Number of worker threads for parallel processing (default: 1)'
+    )
+    translate_parser.add_argument(
+        '--skip-validation',
+        action='store_true',
+        help='Skip API validation before starting translation (not recommended)'
     )
     translate_parser.set_defaults(func=cmd_translate)
     
@@ -188,6 +224,9 @@ def main():
         print("\n" + "="*60)
         print("EXAMPLES:")
         print("="*60)
+        print("# Validate API configuration:")
+        print('python tool.py validate -p chutes')
+        print()
         print("# Scrape a novel from 69shu:")
         print('python tool.py scrape -n "https://www.69shu.com/book/123.htm" "Novel Title"')
         print()
@@ -198,6 +237,7 @@ def main():
         print('python tool.py convert -f "./Novels/Novel_Title/Novel_Title-English" -o "novel.epub" -t "Novel Title" -a "Author Name"')
         print()
         print("# Full workflow example:")
+        print('python tool.py validate -p chutes  # Test API first')
         print('python tool.py scrape -n "https://www.69shu.com/book/123.htm" "My Novel" -m 50')
         print('python tool.py translate -n "./Novels/My_Novel" -p chutes -w 2')
         print('python tool.py convert -f "./Novels/My_Novel/My_Novel-English" -o "my_novel.epub" -t "My Novel" -a "Author"')

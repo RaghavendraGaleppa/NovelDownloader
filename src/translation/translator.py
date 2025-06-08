@@ -21,7 +21,7 @@ except ImportError:
     TRANSLATION_AVAILABLE = False
     api_providers = {} # Define as empty if import fails
 
-def validate_api_configuration(api_provider_name: str) -> tuple[bool, str]:
+def validate_api_configuration(api_provider_name: str) -> tuple[bool, str | None]:
     """
     Validates API configuration and connectivity.
     
@@ -98,11 +98,11 @@ def perform_api_validation(api_provider_name: str) -> bool:
     if not config_valid:
         console.print(f"❌ API Configuration Error: {config_error}", style="red")
         console.print("\n💡 To fix this:", style="yellow")
-        if "not set" in config_error or "empty" in config_error:
+        if config_error and ("not set" in config_error or "empty" in config_error):
             api_key_env_var = api_providers.get(api_provider_name, {}).get("api_key_env_var", "API_KEY")
             console.print(f"   1. Set your API key: export {api_key_env_var}=\"your-api-key-here\"", style="cyan")
             console.print(f"   2. Restart your terminal or source your environment", style="cyan")
-        elif "Unknown API provider" in config_error:
+        elif config_error and "Unknown API provider" in config_error:
             console.print(f"   1. Use a valid provider name from the available options", style="cyan")
         return False
     
@@ -526,18 +526,28 @@ def _process_chapters(files_to_process, retry_failed_only, progress_data, raws_d
     
     return chapters_processed_this_session
 
-def translate_novel_chapters(novel_base_directory: str, api_provider_name: str, retry_failed_only: bool = False):
+def translate_novel_chapters(novel_base_directory: str, api_provider_name: str, retry_failed_only: bool = False, skip_validation: bool = False):
     """
     Processes raw chapter files, translates them using the specified provider, and saves them.
     Maintains progress and can optionally only retry previously failed translations.
+    
+    Args:
+        novel_base_directory: Base directory containing the novel files
+        api_provider_name: API provider to use for translation
+        retry_failed_only: Whether to only retry previously failed translations
+        skip_validation: Whether to skip API validation (default: False, validation runs by default)
     """
     novel_name_from_dir = os.path.basename(os.path.normpath(novel_base_directory))
 
-    # Perform API validation before starting translation
-    if not perform_api_validation(api_provider_name):
-        console.print("\n❌ API validation failed. Cannot proceed with translation.", style="bold red")
-        console.print("Please fix the API configuration issues above and try again.", style="yellow")
-        return
+    # Perform API validation before starting translation (unless skipped)
+    if not skip_validation:
+        if not perform_api_validation(api_provider_name):
+            console.print("\n❌ API validation failed. Cannot proceed with translation.", style="bold red")
+            console.print("Please fix the API configuration issues above and try again.", style="yellow")
+            console.print("💡 Tip: Use --skip-validation to bypass this check (not recommended).", style="cyan")
+            return
+    else:
+        console.print("⚠️  API validation skipped as requested.", style="yellow")
 
     raws_dir = os.path.join(novel_base_directory, f"{novel_name_from_dir}-Raws")
     translated_raws_dir = os.path.join(novel_base_directory, f"{novel_name_from_dir}-English")
@@ -625,6 +635,10 @@ if __name__ == "__main__":
                         default=1,
                         help="Number of worker threads for parallel processing (default: 1).")
     
+    parser.add_argument("--skip-validation",
+                        action="store_true",
+                        help="Skip API validation before starting translation (not recommended).")
+    
     args = parser.parse_args()
 
     # The API key is now sourced by openrouter.py based on the provider.
@@ -642,4 +656,5 @@ if __name__ == "__main__":
     else:
         translate_novel_chapters(args.novel_base_directory, 
                                  api_provider_name=args.api_provider_name, 
-                                 retry_failed_only=args.retry_failed) 
+                                 retry_failed_only=args.retry_failed,
+                                 skip_validation=args.skip_validation) 
