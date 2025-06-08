@@ -12,6 +12,22 @@ A complete Python-based pipeline for scraping, translating, and converting Chine
 - **Parallel Processing**: Multi-threaded translation for faster processing
 - **Robust Error Handling**: Automatic retries and comprehensive error recovery
 
+## 🌐 Supported Extraction Backends
+
+The scraper supports multiple Chinese novel websites through specialized extraction backends:
+
+### EB69Shu Backend
+- **69shu.com** and variants (69shu, shu69, 69shuba)
+- Handles standard chapter navigation and content extraction
+- Supports both numbered chapters and traditional Chinese chapter formats
+
+### EB1QXS Backend  
+- **1qxs.com** (一七小说)
+- Handles multi-part chapters (automatically combines parts into single chapter files)
+- Specialized URL pattern recognition for chapter/part structure
+
+**Note**: The system automatically detects which backend to use based on the URL domain.
+
 ## 📋 Prerequisites
 
 - Python 3.8 or higher
