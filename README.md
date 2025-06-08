@@ -32,7 +32,7 @@ The scraper supports multiple Chinese novel websites through specialized extract
 
 - Python 3.8 or higher
 - Pandoc (for EPUB conversion)
-- API key for translation service (OpenRouter, Chutes, etc.)
+- API key for translation service (OpenRouter, Chutes, etc.) - See [API Key Setup Guide](docs/api-keys.md)
 
 ## 🛠️ Installation
 
@@ -56,6 +56,8 @@ The scraper supports multiple Chinese novel websites through specialized extract
    ```bash
    export API_KEY="your-api-key"
    ```
+   
+   📖 **Need help getting an API key?** See the detailed [API Key Setup Guide](docs/api-keys.md) for step-by-step instructions for OpenRouter and Chutes.
 
 ## 🎯 Quick Start
 
@@ -226,12 +228,14 @@ project-root/
 
 ### Environment Variables
 ```bash
-# Required for translation
+# Required for translation - see docs/api-keys.md for setup instructions
 export API_KEY="your-api-key"
 
 # Optional: Custom output directory
 export NOVELS_DIR="/path/to/novels"
 ```
+
+**📖 For detailed API key setup instructions, see [docs/api-keys.md](docs/api-keys.md)**
 
 ### API Validation
 The translation system automatically validates your API configuration before starting any translation work:
@@ -243,7 +247,7 @@ The translation system automatically validates your API configuration before sta
 4. **Clear Error Messages**: Provides specific guidance on how to fix configuration issues
 
 #### Common Validation Errors
-- **API key not set**: `export API_KEY="your-api-key-here"`
+- **API key not set**: See [API Key Setup Guide](docs/api-keys.md) for detailed setup instructions
 - **Empty API key**: Check that your API key value is correct
 - **Unknown provider**: Use `chutes` or `openrouter` as provider names
 - **Connectivity issues**: Check internet connection and API service status
@@ -253,6 +257,8 @@ Configure in `src/translation/openrouter.py`:
 - **Chutes API**: Default provider
 - **OpenRouter API**: Alternative provider
 - Add custom providers as needed
+
+**📖 For provider-specific setup instructions, see [docs/api-keys.md](docs/api-keys.md)**
 
 ## 🚨 Error Handling & Recovery
 
@@ -315,7 +321,7 @@ python tool.py translate -n "./Novels/Novel_Title" -w 2 -p openrouter
 ### Common Issues
 
 1. **Import Errors**: Ensure you're running from the project root directory
-2. **API Key Errors**: Set `API_KEY` environment variable
+2. **API Key Errors**: See [API Key Setup Guide](docs/api-keys.md) for detailed setup instructions
 3. **Pandoc Not Found**: Install Pandoc system-wide for EPUB conversion
 4. **SSL Errors**: The scraper automatically handles SSL issues
 5. **Rate Limiting**: Increase delays or reduce worker count
