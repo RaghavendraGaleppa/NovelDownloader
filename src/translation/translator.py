@@ -13,7 +13,7 @@ console = Console()
 
 # Attempt to import the translation function and providers
 try:
-    from openrouter import translate_chinese_to_english, api_providers # model_names no longer directly needed here
+    from src.translation.openrouter import translate_chinese_to_english, api_providers # model_names no longer directly needed here
     TRANSLATION_AVAILABLE = True
 except ImportError:
     console.print("⚠️  WARNING: openrouter.py not found or its components could not be imported.", style="yellow")

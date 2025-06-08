@@ -8,7 +8,7 @@ import json
 import random
 import argparse
 import urllib3
-from extraction_backends import ExtractionBackend, EB69Shu, EB1QXS
+from src.scraping.extraction_backends import ExtractionBackend, EB69Shu, EB1QXS
 from urllib.parse import urlparse
 
 # Disable SSL warnings
