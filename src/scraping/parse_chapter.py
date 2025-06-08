@@ -10,6 +10,7 @@ import argparse
 import urllib3
 from src.scraping.extraction_backends import ExtractionBackend, EB69Shu, EB1QXS
 from urllib.parse import urlparse
+from typing import Optional
 
 # Disable SSL warnings
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -139,20 +140,20 @@ def scrape_chapter(url):
     scraper = NovelScraper()
     return scraper.fetch_url(url)
 
-def get_next_chapter_url(html_content: str, url: str = None) -> str | None:
+def get_next_chapter_url(html_content: str, url: Optional[str] = None) -> Optional[str]:
     """
     Extracts the URL for the next chapter from the given HTML content.
 
     Args:
         html_content (str): The HTML content of the novel chapter page.
-        url (str, optional): The original URL for backend detection.
+        url (str, optional): The original URL for backend detection and relative URL resolution.
 
     Returns:
         str or None: The URL of the next chapter, or None if not found.
     """
     # Use default backend if no URL provided for detection
     backend = detect_extraction_backend(url) if url else EB69Shu()
-    return backend.get_next_chapter_url(html_content)
+    return backend.get_next_chapter_url(html_content, url)
 
 def scrape_novel_content(source: str, source_type: str = 'file') -> tuple[str, list[str], str | None, str | None]:
     """
@@ -194,25 +195,26 @@ def scrape_novel_content(source: str, source_type: str = 'file') -> tuple[str, l
     # Detect the appropriate backend based on the source URL
     backend = detect_extraction_backend(source) if source_type == 'url' else EB69Shu()
     
-    # Extract all content using the backend
-    title, paragraphs, next_chapter_url, chapter_number = backend.extract_all_content(html_doc)
+    # Extract all content using the backend, passing current URL for relative URL resolution
+    current_url = source if source_type == 'url' else None
+    title, paragraphs, next_chapter_url, chapter_number = backend.extract_all_content(html_doc, current_url)
 
     return title, paragraphs, next_chapter_url, chapter_number
 
-def get_chapter_number(html_content: str, url: str = None) -> str | None:
+def get_chapter_number(html_content: str, url: Optional[str] = None) -> Optional[str]:
     """
     Extracts the chapter number from the given HTML content.
 
     Args:
         html_content (str): The HTML content of the novel chapter page.
-        url (str, optional): The original URL for backend detection.
+        url (str, optional): The original URL for backend detection and URL-based extraction fallback.
 
     Returns:
         str or None: The chapter number as a string, or None if not found.
     """
     # Use default backend if no URL provided for detection
     backend = detect_extraction_backend(url) if url else EB69Shu()
-    return backend.get_chapter_number(html_content)
+    return backend.get_chapter_number(html_content, url)
 
 def _ensure_output_directory(dir_path: str) -> bool:
     """Ensures the output directory exists, creating it if necessary."""
@@ -264,12 +266,25 @@ def _save_current_progress(
         print(f"Error saving progress to {progress_file_path}: {e}")
 
 def _create_chapter_file(output_dir_path: str, chapter_num_str: str, title: str, paragraphs: list[str]) -> bool:
-    """Creates a markdown file for the given chapter content in the specified output directory."""
+    """Creates or appends to a markdown file for the given chapter content in the specified output directory."""
     filename = f"Chapter_{chapter_num_str}.md"
     filepath = os.path.join(output_dir_path, filename)
+    
     try:
-        with open(filepath, 'w', encoding='utf-8') as f:
-            f.write(f"# {title}\n\n")
+        # Check if file already exists
+        file_exists = os.path.exists(filepath)
+        
+        # Use append mode if file exists, write mode if new
+        mode = 'a' if file_exists else 'w'
+        
+        with open(filepath, mode, encoding='utf-8') as f:
+            if not file_exists:
+                # New file - write header and title
+                f.write(f"# {title}\n\n")
+            else:
+                # Existing file - add separator and content
+                f.write(f"\n\n---\n\n**{title}**\n\n")
+            
             if paragraphs:
                 f.write("\n\n".join(paragraphs))
             f.write("\n")
@@ -399,10 +414,18 @@ def main(args: argparse.Namespace):
             _save_current_progress(progress_file_path, novel_title, original_start_url, safe_novel_title_dir_name, current_url, next_url_from_scraper)
             print(f"Progress updated to skip {current_url}.")
         else:
+            # Check if file exists before creation to determine action
+            filepath = os.path.join(output_dir_path, f"Chapter_{chapter_num_str}.md")
+            file_existed = os.path.exists(filepath)
+            
             if _create_chapter_file(output_dir_path, chapter_num_str, title, paragraphs):
                 chapters_saved_this_session += 1
                 print("-" * 70) 
-                print(f"Successfully saved: {os.path.join(output_dir_path, f'Chapter_{chapter_num_str}.md')} (Session total: {chapters_saved_this_session})")
+                
+                # Show appropriate message based on whether file existed
+                file_action = "Appended to existing" if file_existed else "Successfully saved new"
+                print(f"{file_action}: {filepath} (Session total: {chapters_saved_this_session})")
+                
                 _save_current_progress(progress_file_path, novel_title, original_start_url, safe_novel_title_dir_name, current_url, next_url_from_scraper)
 
                 if not next_url_from_scraper:
@@ -410,7 +433,7 @@ def main(args: argparse.Namespace):
                     _attempt_cleanup_completed_progress_file(progress_file_path)
             else:
                 print(f"Failed to save {os.path.join(output_dir_path, f'Chapter_{chapter_num_str}.md')}. Stopping session to allow retry.")
-                break 
+                break
         
         last_processed_url = current_url # For progress saving on skip
         current_url = next_url_from_scraper 
