@@ -549,7 +549,8 @@ def _process_chapters(files_to_process, retry_failed_only, progress_data, raws_d
     console.print(f"   • Total session time: {total_session_time:.1f} seconds ({total_session_time/60:.1f} minutes)", style="cyan")
     
     if successful_chapter_times:
-        avg_time_per_chapter = sum(successful_chapter_times) / len(successful_chapter_times)
+        # For average time per chapter, use session time divided by chapters (accounts for parallel processing)
+        avg_time_per_chapter = total_session_time / len(successful_chapter_times)
         console.print(f"   • Chapters successfully translated: {len(successful_chapter_times)}", style="cyan")
         console.print(f"   • Average time per chapter: {avg_time_per_chapter:.1f} seconds", style="cyan")
         console.print(f"   • Fastest chapter: {min(successful_chapter_times):.1f} seconds", style="cyan")
