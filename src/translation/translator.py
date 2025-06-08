@@ -384,7 +384,8 @@ def _process_single_chapter(chapter_filename, retry_failed_only, progress_data, 
             read_success, raw_content, read_error = _read_chapter_content(chapter_filename, raws_dir)
             if not read_success:
                 total_time = time.time() - start_time
-                console.print(f"❌ FAILED: {chapter_filename} - {read_error} [total_time={total_time:.1f}s]", style="red")
+                if use_status_spinner:
+                    console.print(f"❌ FAILED: {chapter_filename} - {read_error} [total_time={total_time:.1f}s]", style="red")
                 return (False, chapter_filename, read_error)
             
             # Step 4: Determine translation context
@@ -397,7 +398,8 @@ def _process_single_chapter(chapter_filename, retry_failed_only, progress_data, 
             
             if not translation_success:
                 total_time = time.time() - start_time
-                console.print(f"❌ FAILED: {chapter_filename} - Translation error [total_time={total_time:.1f}s]", style="red")
+                if use_status_spinner:
+                    console.print(f"❌ FAILED: {chapter_filename} - Translation error [total_time={total_time:.1f}s]", style="red")
                 _update_translation_progress(chapter_filename, progress_data, progress_file_path, progress_lock, success=False)
                 return (False, chapter_filename, translation_error)
             
@@ -408,7 +410,8 @@ def _process_single_chapter(chapter_filename, retry_failed_only, progress_data, 
             
             if not save_success:
                 total_time = time.time() - start_time
-                console.print(f"❌ FAILED: {chapter_filename} - {save_error} [total_time={total_time:.1f}s]", style="red")
+                if use_status_spinner:
+                    console.print(f"❌ FAILED: {chapter_filename} - {save_error} [total_time={total_time:.1f}s]", style="red")
                 _update_translation_progress(chapter_filename, progress_data, progress_file_path, progress_lock, success=False)
                 return (False, chapter_filename, save_error)
             
@@ -419,17 +422,20 @@ def _process_single_chapter(chapter_filename, retry_failed_only, progress_data, 
             total_time = time.time() - start_time
             
             if info_msg:
-                console.print(f"⚠️  PLACEHOLDER: {chapter_filename} - {info_msg} [total_time={total_time:.1f}s]", style="yellow")
+                if use_status_spinner:
+                    console.print(f"⚠️  PLACEHOLDER: {chapter_filename} - {info_msg} [total_time={total_time:.1f}s]", style="yellow")
                 success_msg = f"{info_msg}, saved as placeholder in {total_time:.2f}s"
             else:
-                console.print(f"✅ SUCCESS: {chapter_filename} - Translation completed [total_time={total_time:.1f}s]", style="green")
+                if use_status_spinner:
+                    console.print(f"✅ SUCCESS: {chapter_filename} - Translation completed [total_time={total_time:.1f}s]", style="green")
                 success_msg = f"Successfully translated in {translation_time:.2f}s (Total: {total_time:.2f}s)"
             
             return (True, chapter_filename, success_msg)
 
     except Exception as e:
         total_time = time.time() - start_time
-        console.print(f"❌ FAILED: {chapter_filename} - Processing error: {str(e)} [total_time={total_time:.1f}s]", style="red")
+        if use_status_spinner:
+            console.print(f"❌ FAILED: {chapter_filename} - Processing error: {str(e)} [total_time={total_time:.1f}s]", style="red")
         _update_translation_progress(chapter_filename, progress_data, progress_file_path, progress_lock, success=False)
         return (False, chapter_filename, f"Processing error: {e}")
 
@@ -517,6 +523,17 @@ def _process_chapters(files_to_process, retry_failed_only, progress_data, raws_d
                     
                     # Ensure message is never None for string operations
                     message = message or ""
+                    
+                    # Print individual chapter completion status with timing
+                    if success:
+                        if "skipped" in message.lower():
+                            console.print(f"⏭️  SKIPPED: {chapter_filename} - {message} [total_time={chapter_duration:.1f}s]", style="dim")
+                        elif "placeholder" in message.lower():
+                            console.print(f"⚠️  PLACEHOLDER: {chapter_filename} - Translation completed (placeholder) [total_time={chapter_duration:.1f}s]", style="yellow")
+                        else:
+                            console.print(f"✅ SUCCESS: {chapter_filename} - Translation completed [total_time={chapter_duration:.1f}s]", style="green")
+                    else:
+                        console.print(f"❌ FAILED: {chapter_filename} - {message} [total_time={chapter_duration:.1f}s]", style="red")
                     
                     if success and "skipped" not in message.lower():
                         chapters_processed_this_session += 1
