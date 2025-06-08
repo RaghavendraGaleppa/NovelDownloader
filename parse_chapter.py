@@ -7,64 +7,152 @@ import time
 import json
 import random
 import argparse
+import urllib3
+from extraction_backends import ExtractionBackend, EB69Shu, EB1QXS
+from urllib.parse import urlparse
+
+# Disable SSL warnings
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # PROGRESS_FILE constant is removed, will be generated dynamically.
 
-# --- Helper Functions ---
+# --- Scraper Class ---
 
-# Ensure other functions (scrape_chapter, get_next_chapter_url, scrape_novel_content, get_chapter_number)
-# are defined above this point, or imported if they were in separate files.
+class NovelScraper:
+    """
+    A web scraper class specifically designed for fetching novel content from websites.
+    Handles SSL issues and provides robust HTTP request functionality.
+    """
+    
+    def __init__(self, timeout=30):
+        """
+        Initialize the NovelScraper with SSL verification disabled.
+        
+        Args:
+            timeout (int): Request timeout in seconds (default: 30)
+        """
+        self.timeout = timeout
+        self.scraper = self._setup_scraper()
+    
+    def _setup_scraper(self):
+        """
+        Set up cloudscraper with complete SSL verification bypass.
+        
+        Returns:
+            cloudscraper.CloudScraper: Configured scraper instance
+        """
+        # Initialize cloudscraper with SSL verification completely disabled
+        scraper = cloudscraper.create_scraper(
+            browser={
+                'browser': 'chrome',
+                'platform': 'linux',  # Or 'windows', 'darwin' based on your OS
+                'mobile': False
+            }
+        )
+        
+        # Completely disable SSL verification and hostname checking
+        scraper.verify = False
+        
+        # Mount a custom HTTPAdapter that disables SSL verification
+        from requests.adapters import HTTPAdapter
+        from urllib3.util.ssl_ import create_urllib3_context
+        import ssl
+        
+        class NoSSLAdapter(HTTPAdapter):
+            def init_poolmanager(self, *args, **kwargs):
+                ctx = create_urllib3_context()
+                ctx.check_hostname = False
+                ctx.verify_mode = ssl.CERT_NONE
+                kwargs['ssl_context'] = ctx
+                return super().init_poolmanager(*args, **kwargs)
+        
+        scraper.mount('https://', NoSSLAdapter())
+        scraper.mount('http://', HTTPAdapter())
+        
+        return scraper
+    
+    def fetch_url(self, url):
+        """
+        Fetch content from the given URL with error handling.
+        
+        Args:
+            url (str): The URL to fetch
+            
+        Returns:
+            str or None: The HTML content if successful, None if failed
+        """
+        response = None
+        try:
+            response = self.scraper.get(url, verify=False, timeout=self.timeout)
+            response.raise_for_status()  # Raise an HTTPError for bad responses (4xx or 5xx)
+            return response.text
+        except requests.exceptions.RequestException as e:
+            error_message = f"Failed to fetch {url}"
+            if response is not None: 
+                error_message += f" - Status Code: {response.status_code}"
+            error_message += f" - Error: {e}"
+            print(error_message)
+            return None
+        except Exception as e:
+            print(f"An unexpected error occurred while fetching URL {url}: {e}")
+            return None
+
+# --- Backend Detection ---
+
+def detect_extraction_backend(url: str) -> ExtractionBackend:
+    """
+    Detect the appropriate extraction backend based on the URL.
+    
+    Args:
+        url (str): The URL to analyze
+        
+    Returns:
+        ExtractionBackend: The appropriate backend instance
+    """
+    parsed_url = urlparse(url)
+    domain = parsed_url.netloc.lower()
+    
+    # Check for 1qxs domains
+    if '1qxs' in domain:
+        return EB1QXS()
+    
+    # Check for 69shu domains
+    if '69shu' in domain or 'shu69' in domain or '69shuba' in domain:
+        return EB69Shu()
+    
+    # Default to 69shu backend for now
+    # In the future, add more conditions for other websites
+    return EB69Shu()
+
+# --- Helper Functions (Updated to use backends) ---
 
 def scrape_chapter(url):
-    # Initialize cloudscraper
-    scraper = cloudscraper.create_scraper(
-        browser={
-            'browser': 'chrome',
-            'platform': 'linux',  # Or 'windows', 'darwin' based on your OS
-            'mobile': False
-        }
-    )
-    response = None # Initialize response to None
-    try:
-        response = scraper.get(url)
-        response.raise_for_status()  # Raise an HTTPError for bad responses (4xx or 5xx)
-        return response.text
-    except requests.exceptions.RequestException as e: # More specific exception
-        error_message = f"Failed to fetch {url}"
-        if response is not None: 
-            error_message += f" - Status Code: {response.status_code}"
-        error_message += f" - Error: {e}"
-        print(error_message)
-        return None # Return None to indicate failure
-    except Exception as e: # Catch any other unexpected errors
-        print(f"An unexpected error occurred in scrape_chapter for URL {url}: {e}")
-        return None
+    """
+    Scrape a chapter from the given URL using the NovelScraper class.
+    
+    Args:
+        url (str): The URL of the chapter to scrape
+        
+    Returns:
+        str or None: The HTML content if successful, None if failed
+    """
+    scraper = NovelScraper()
+    return scraper.fetch_url(url)
 
-
-def get_next_chapter_url(html_content):
+def get_next_chapter_url(html_content: str, url: str = None) -> str | None:
     """
     Extracts the URL for the next chapter from the given HTML content.
 
     Args:
         html_content (str): The HTML content of the novel chapter page.
+        url (str, optional): The original URL for backend detection.
 
     Returns:
         str or None: The URL of the next chapter, or None if not found.
     """
-    soup = BeautifulSoup(html_content, 'html.parser')
-
-    # Find the 'div' with class 'page1' which contains navigation links
-    page_navigation_div = soup.find('div', class_='page1')
-
-    if page_navigation_div:
-        # Look for an 'a' tag within this div that has the text "下一章" (Next Chapter)
-        # Note: '下一章' is the Chinese text for "Next Chapter"
-        next_chapter_link = page_navigation_div.find('a', string="下一章")
-        
-        if next_chapter_link and 'href' in next_chapter_link.attrs:
-            return next_chapter_link['href']
-    
-    return None # Return None if the next chapter link is not found
+    # Use default backend if no URL provided for detection
+    backend = detect_extraction_backend(url) if url else EB69Shu()
+    return backend.get_next_chapter_url(html_content)
 
 def scrape_novel_content(source: str, source_type: str = 'file') -> tuple[str, list[str], str | None, str | None]:
     """
@@ -73,7 +161,7 @@ def scrape_novel_content(source: str, source_type: str = 'file') -> tuple[str, l
     Args:
         source (str): The path to an HTML file or a URL.
         source_type (str): 'file' if source is a file path, 'url' if source is a URL.
-                           Defaults to 'file'.
+                          Defaults to 'file'.
 
     Returns:
         tuple: A tuple containing (title, paragraphs_list, next_chapter_url, chapter_number).
@@ -103,122 +191,28 @@ def scrape_novel_content(source: str, source_type: str = 'file') -> tuple[str, l
     if not html_doc:
         return "No Content Found", [], None, None
 
-    # Get the next chapter URL
-    next_chapter_url = get_next_chapter_url(html_doc)
-    # Get the chapter number
-    chapter_number = get_chapter_number(html_doc)
+    # Detect the appropriate backend based on the source URL
+    backend = detect_extraction_backend(source) if source_type == 'url' else EB69Shu()
+    
+    # Extract all content using the backend
+    title, paragraphs, next_chapter_url, chapter_number = backend.extract_all_content(html_doc)
 
-    # Parse the HTML content
-    soup = BeautifulSoup(html_doc, 'html.parser')
+    return title, paragraphs, next_chapter_url, chapter_number
 
-    # Extract the title from the <title> tag in the <head> section
-    page_title = soup.title.string.strip() if soup.title and soup.title.string else "No Title Found"
-
-    # Extract the novel text paragraphs
-    novel_text_container = soup.find('div', class_='txtnav')
-    final_paragraphs = []
-
-    if novel_text_container:
-        # Get the chapter title from the <h1> tag inside 'txtnav' to remove potential duplication in text
-        chapter_title_in_h1 = ""
-        h1_tag = novel_text_container.find('h1')
-        if h1_tag:
-            chapter_title_in_h1 = h1_tag.get_text(strip=True)
-
-        # Remove advertisement, info, and navigation divs before extracting text
-        for div_id in ['txtright', 'baocuo', 'tuijian']:
-            div_to_remove = novel_text_container.find('div', id=div_id)
-            if div_to_remove:
-                div_to_remove.extract()
-        for div_class in ['bottom-ad', 'contentadv', 'txtinfo', 'page1']:
-            for div_to_remove in novel_text_container.find_all('div', class_=div_class):
-                div_to_remove.extract()
-        
-        # Extract the entire text content from the cleaned novel_text_container
-        # We need to preserve <br> tags as they indicate line/paragraph breaks.
-        # Get the inner HTML of the container after removing unwanted elements.
-        raw_text_html = str(novel_text_container)
-
-        # Clean up specific HTML entities (like &emsp;)
-        raw_text_html = raw_text_html.replace('&emsp;', '')
-        
-        # Replace <br> tags with a unique temporary placeholder for easier processing later
-        # Use regex to catch variations like <br/>, <br > etc.
-        raw_text_html = re.sub(r'<br\s*?/?>', '__BR__', raw_text_html)
-
-        # Now, parse this modified HTML snippet to get the text content.
-        # BeautifulSoup's get_text() with a separator helps here.
-        cleaned_text = BeautifulSoup(raw_text_html, 'html.parser').get_text(separator='').strip()
-        
-        # Replace sequences of two or more '__BR__' with a standardized paragraph break (\n\n)
-        # This treats `<br><br>` (or more) as a new paragraph.
-        cleaned_text = cleaned_text.replace('__BR____BR__', '\n\n')
-        # Remove single '__BR__' which typically represent line breaks within a paragraph, not new paragraphs.
-        cleaned_text = cleaned_text.replace('__BR__', '').strip()
-        
-        # Remove the duplicated chapter title from the beginning of the text content if it exists
-        if chapter_title_in_h1 and cleaned_text.startswith(chapter_title_in_h1):
-            cleaned_text = cleaned_text[len(chapter_title_in_h1):].strip()
-
-        # Normalize any remaining sequences of multiple newlines into a single paragraph break
-        cleaned_text = re.sub(r'\n{2,}', '\n\n', cleaned_text).strip()
-        
-        # Split the cleaned text into paragraphs based on the double newline separator
-        final_paragraphs = [p.strip() for p in cleaned_text.split('\n\n') if p.strip()]
-
-    return page_title, final_paragraphs, next_chapter_url, chapter_number
-
-def get_chapter_number(html_content: str) -> str | None:
+def get_chapter_number(html_content: str, url: str = None) -> str | None:
     """
     Extracts the chapter number from the given HTML content.
 
     Args:
         html_content (str): The HTML content of the novel chapter page.
+        url (str, optional): The original URL for backend detection.
 
     Returns:
         str or None: The chapter number as a string, or None if not found.
     """
-    soup = BeautifulSoup(html_content, 'html.parser')
-    chapter_number = None
-
-    # Try to find chapter number in <h1> tag within div.txtnav
-    txtnav_div = soup.find('div', class_='txtnav')
-    if txtnav_div:
-        h1_tag = txtnav_div.find('h1')
-        if h1_tag and h1_tag.string:
-            # Regex to find "第<number>章"
-            match = re.search(r'第(\d+)章', h1_tag.string)
-            if match:
-                chapter_number = match.group(1)
-
-    # If not found in <h1>, try to find in <title> tag
-    if not chapter_number and soup.title and soup.title.string:
-        match = re.search(r'第(\d+)章', soup.title.string)
-        if match:
-            chapter_number = match.group(1)
-            
-    # Fallback: try to find a pattern like "Chapter <number>" or "第<number>话" etc.
-    # This is a more generic attempt if the specific "第X章" is not found.
-    if not chapter_number:
-        # Attempt to find chapter number in h1 tag within div.txtnav if specific pattern failed
-        if txtnav_div:
-            h1_tag = txtnav_div.find('h1')
-            if h1_tag and h1_tag.string:
-                # Regex for "第" followed by digits, then "章" or "话" or space or end of string
-                match = re.search(r'第\s*(\d+)\s*章|第\s*(\d+)\s*话|Chapter\s*(\d+)|第\s*(\d+)', h1_tag.string, re.IGNORECASE)
-                if match:
-                    # match.groups() will return a tuple like (None, '5', None, None)
-                    # We need to find the first non-None group
-                    chapter_number = next((g for g in match.groups() if g is not None), None)
-
-        # If still not found, try in <title> tag with the more generic regex
-        if not chapter_number and soup.title and soup.title.string:
-            match = re.search(r'第\s*(\d+)\s*章|第\s*(\d+)\s*话|Chapter\s*(\d+)|第\s*(\d+)', soup.title.string, re.IGNORECASE)
-            if match:
-                chapter_number = next((g for g in match.groups() if g is not None), None)
-                
-    return chapter_number
-
+    # Use default backend if no URL provided for detection
+    backend = detect_extraction_backend(url) if url else EB69Shu()
+    return backend.get_chapter_number(html_content)
 
 def _ensure_output_directory(dir_path: str) -> bool:
     """Ensures the output directory exists, creating it if necessary."""
@@ -375,6 +369,12 @@ def main(args: argparse.Namespace):
     chapters_saved_this_session = 0
     max_chapters = args.max_chapters
 
+    # Detect and print which extraction backend will be used
+    if current_url:
+        backend = detect_extraction_backend(current_url)
+        backend_name = backend.__class__.__name__
+        print(f"Using extraction backend: {backend_name}")
+
     print(f"--- Starting scrape for '{novel_title}' --- URL: {current_url}")
     print(f"Output directory: {output_dir_path}")
     print(f"Progress file: {progress_file_path}")
@@ -452,6 +452,3 @@ if __name__ == "__main__":
     
     args = parser.parse_args()
     main(args) # Pass the parsed args object to main
-
-# Ensure other functions (scrape_chapter, get_next_chapter_url, scrape_novel_content, get_chapter_number)
-# ... existing code ...
