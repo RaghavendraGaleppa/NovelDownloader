@@ -324,13 +324,13 @@ def main(args: argparse.Namespace):
         original_start_url = start_url_param # Tentative, might be overwritten if implicitly resuming
         safe_novel_title_dir_name = novel_title.replace(' ', '_').replace('/', '_').replace('\\', '_')
         
-        # Use custom output path if provided, otherwise use novel title directory
+        # Use custom output path if provided, otherwise use Novels/novel_title directory structure
         if args.output_path:
             base_output_dir = args.output_path
             progress_file_path = os.path.join(base_output_dir, f"{safe_novel_title_dir_name}_progress.json")
         else:
-            base_output_dir = safe_novel_title_dir_name
-            progress_file_path = os.path.join(safe_novel_title_dir_name, f"{safe_novel_title_dir_name}_progress.json")
+            base_output_dir = os.path.join("Novels", safe_novel_title_dir_name)
+            progress_file_path = os.path.join(base_output_dir, f"{safe_novel_title_dir_name}_progress.json")
 
         if os.path.exists(progress_file_path):
             print(f"Found existing progress file based on novel title: {progress_file_path}. Attempting implicit resume.")
@@ -363,11 +363,11 @@ def main(args: argparse.Namespace):
         print("Error: Invalid arguments. Please specify a progress file or new scrape details.")
         return
 
-    # Set final output directory - use custom path if provided, otherwise use novel title with Raws subfolder
+    # Set final output directory - use custom path if provided, otherwise use Novels/novel_title with novel-specific Raws subfolder
     if args.output_path:
-        output_dir_path = os.path.join(args.output_path, "Raws")
+        output_dir_path = os.path.join(args.output_path, f"{safe_novel_title_dir_name}-Raws")
     else:
-        output_dir_path = os.path.join(safe_novel_title_dir_name, "Raws")
+        output_dir_path = os.path.join("Novels", safe_novel_title_dir_name, f"{safe_novel_title_dir_name}-Raws")
 
     if not _ensure_output_directory(output_dir_path):
         return

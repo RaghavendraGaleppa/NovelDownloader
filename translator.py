@@ -433,8 +433,8 @@ def translate_novel_chapters(novel_base_directory: str, api_provider_name: str, 
     """
     novel_name_from_dir = os.path.basename(os.path.normpath(novel_base_directory))
 
-    raws_dir = os.path.join(novel_base_directory, "Raws")
-    translated_raws_dir = os.path.join(novel_base_directory, "TranslatedRaws")
+    raws_dir = os.path.join(novel_base_directory, f"{novel_name_from_dir}-Raws")
+    translated_raws_dir = os.path.join(novel_base_directory, f"{novel_name_from_dir}-English")
     progress_file_path = os.path.join(novel_base_directory, f"{novel_name_from_dir}_translation_progress.json")
 
     if not os.path.isdir(raws_dir):
