@@ -663,21 +663,79 @@ def translate_novel_chapters(novel_base_directory: str, api_provider_name: str, 
             key=extract_chapter_number
         )
         console.print(f"🔍 Found {len(files_to_process)} chapters to retry.", style="yellow")
+        
+        # Process the failed chapters once and exit
+        chapters_processed_this_session = _process_chapters(files_to_process, retry_failed_only, progress_data, raws_dir, translated_raws_dir, progress_file_path, api_provider_name, novel_name_from_dir, workers=args.workers)
     else:
-        console.print("🆕 Mode: Standard Translation (New & Unfinished)", style="bold green")
-        try:
-            all_raw_files = [f for f in os.listdir(raws_dir) if f.startswith("Chapter_") and f.endswith(".md")]
-            all_raw_files.sort(key=extract_chapter_number)
-            files_to_process = all_raw_files
-        except FileNotFoundError:
-            console.print(f"❌ Error: Raws directory not found at {raws_dir} when trying to list files.", style="red")
-            return
-        if not files_to_process:
-            console.print(f"📁 No chapter files found in {raws_dir} to translate.", style="yellow")
-            return
-        console.print(f"📚 Found {len(files_to_process)} total chapter files in '{raws_dir}' for potential processing.", style="green")
-
-    chapters_processed_this_session = _process_chapters(files_to_process, retry_failed_only, progress_data, raws_dir, translated_raws_dir, progress_file_path, api_provider_name, novel_name_from_dir, workers=args.workers)
+        console.print("🆕 Mode: Standard Translation (New & Unfinished) - Dynamic Discovery", style="bold green")
+        console.print("📁 Will continuously check for new chapters during translation...", style="cyan")
+        
+        total_chapters_processed_this_session = 0
+        iteration = 1
+        max_retries_per_chapter = 3  # Default value
+        
+        while True:
+            # Get current list of all raw files
+            try:
+                all_raw_files = [f for f in os.listdir(raws_dir) if f.startswith("Chapter_") and f.endswith(".md")]
+                all_raw_files.sort(key=extract_chapter_number)
+            except FileNotFoundError:
+                console.print(f"❌ Error: Raws directory not found at {raws_dir} when trying to list files.", style="red")
+                return
+            
+            if not all_raw_files:
+                if iteration == 1:
+                    console.print(f"📁 No chapter files found in {raws_dir}.", style="yellow")
+                break
+            
+            # Filter to get only unprocessed files
+            unprocessed_files = []
+            for filename in all_raw_files:
+                if filename not in progress_data["translated_files"]:
+                    # Also check if it's not currently failing too many times
+                    current_failure_count = progress_data['failed_translation_attempts'].get(filename, 0)
+                    if current_failure_count < max_retries_per_chapter:
+                        unprocessed_files.append(filename)
+            
+            if not unprocessed_files:
+                console.print(f"✅ No more chapters to process. All available chapters have been translated or have reached max retry limit.", style="green")
+                break
+            
+            console.print(f"\n🔄 Iteration {iteration}: Found {len(unprocessed_files)} chapters to process", style="bold blue")
+            console.print(f"📚 Total chapters in directory: {len(all_raw_files)}", style="blue")
+            console.print(f"✅ Already translated: {len(progress_data['translated_files'])}", style="green")
+            failed_at_limit = len([f for f in progress_data['failed_translation_attempts'] if progress_data['failed_translation_attempts'][f] >= max_retries_per_chapter])
+            if failed_at_limit > 0:
+                console.print(f"❌ Failed (at retry limit): {failed_at_limit}", style="red")
+            
+            # Process this batch of unprocessed files
+            chapters_processed_this_batch = _process_chapters(
+                unprocessed_files, 
+                retry_failed_only, 
+                progress_data, 
+                raws_dir, 
+                translated_raws_dir, 
+                progress_file_path, 
+                api_provider_name, 
+                novel_name_from_dir, 
+                workers=args.workers
+            )
+            
+            total_chapters_processed_this_session += chapters_processed_this_batch
+            
+            # If no chapters were processed in this iteration, break to avoid infinite loop
+            if chapters_processed_this_batch == 0:
+                console.print("⏹️  No chapters were processed in this iteration. Stopping to avoid infinite loop.", style="yellow")
+                break
+            
+            iteration += 1
+            
+            # Brief pause before checking for new files again (only if we processed something)
+            console.print("⏳ Checking for new chapters in 3 seconds...", style="dim")
+            time.sleep(3)
+        
+        console.print(f"\n🎯 Dynamic translation completed! Total chapters processed across all iterations: {total_chapters_processed_this_session}", style="bold green")
+        return  # Return here since we already processed everything
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(

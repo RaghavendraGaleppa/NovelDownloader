@@ -27,10 +27,43 @@ def cmd_scrape(args):
     
     # Create a namespace object that matches what parse_chapter.main expects
     scrape_args = argparse.Namespace()
-    scrape_args.new_scrape = [args.url, args.title]
-    scrape_args.progress_file = None
     scrape_args.max_chapters = args.max_chapters
     scrape_args.output_path = args.output_path
+    
+    if args.resume:
+        # Resume mode - find progress file in the specified folder
+        folder_path = args.resume
+        
+        if not os.path.isdir(folder_path):
+            print(f"❌ Error: Folder not found: {folder_path}")
+            return
+        
+        # Look for progress JSON files in the folder
+        progress_files = [f for f in os.listdir(folder_path) if f.endswith('_progress.json')]
+        
+        if not progress_files:
+            print(f"❌ Error: No progress file found in {folder_path}")
+            print("   Progress files should end with '_progress.json'")
+            return
+        
+        if len(progress_files) > 1:
+            print(f"⚠️  Warning: Multiple progress files found in {folder_path}:")
+            for i, pf in enumerate(progress_files, 1):
+                print(f"   {i}. {pf}")
+            print("   Using the first one found.")
+        
+        progress_file_path = os.path.join(folder_path, progress_files[0])
+        print(f"📁 Found progress file: {progress_file_path}")
+        
+        # Set up args for resume mode
+        scrape_args.progress_file = progress_file_path
+        scrape_args.new_scrape = None
+        
+    else:
+        # New scrape mode
+        args.url, args.title = args.url_title
+        scrape_args.new_scrape = [args.url, args.title]
+        scrape_args.progress_file = None
     
     # Call the main scraping function
     scrape_main(scrape_args)
@@ -116,14 +149,22 @@ def main():
         description='Scrape novel chapters from supported websites (69shu, 1qxs, etc.)',
         formatter_class=argparse.RawTextHelpFormatter
     )
-    scrape_parser.add_argument(
+    
+    # Create mutually exclusive group for new scrape vs resume
+    scrape_group = scrape_parser.add_mutually_exclusive_group(required=True)
+    scrape_group.add_argument(
         '-n', '--new-scrape',
         nargs=2,
         metavar=('URL', 'TITLE'),
-        required=True,
         dest='url_title',
         help='Start a new scrape. Requires URL and TITLE.\nExample: -n "https://example.com/chapter1" "My Novel Title"'
     )
+    scrape_group.add_argument(
+        '-r', '--resume',
+        metavar='FOLDER_PATH',
+        help='Resume scraping from a novel folder. Automatically finds progress file.\nExample: -r "Novels/My_Novel_Title"'
+    )
+    
     scrape_parser.add_argument(
         '-m', '--max-chapters',
         type=int,
@@ -230,6 +271,9 @@ def main():
         print("# Scrape a novel from 69shu:")
         print('python tool.py scrape -n "https://www.69shu.com/book/123.htm" "Novel Title"')
         print()
+        print("# Resume scraping from a folder:")
+        print('python tool.py scrape -r "Novels/Novel_Title"')
+        print()
         print("# Translate scraped chapters:")
         print('python tool.py translate -n "./Novels/Novel_Title" -p chutes')
         print()
@@ -239,13 +283,15 @@ def main():
         print("# Full workflow example:")
         print('python tool.py validate -p chutes  # Test API first')
         print('python tool.py scrape -n "https://www.69shu.com/book/123.htm" "My Novel" -m 50')
+        print('python tool.py scrape -r "Novels/My_Novel"  # Resume if needed')
         print('python tool.py translate -n "./Novels/My_Novel" -p chutes -w 2')
         print('python tool.py convert -f "./Novels/My_Novel/My_Novel-English" -o "my_novel.epub" -t "My Novel" -a "Author"')
         return
     
     # Extract URL and title for scrape command
     if args.command == 'scrape':
-        args.url, args.title = args.url_title
+        if hasattr(args, 'url_title') and args.url_title:
+            args.url, args.title = args.url_title
     
     # Call the appropriate function
     try:
