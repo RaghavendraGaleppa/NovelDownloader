@@ -306,48 +306,6 @@ python tool.py translate -n "./Novels/My_Awesome_Novel" -w 4
 ```
 **Note**: Be mindful of your API provider's rate limits. Using too many workers can lead to keys being temporarily blocked. The automatic fallback helps, but setting a reasonable number of workers is best.
 
-## 🔍 Troubleshooting
-
-### Common Issues
-
-1. **Import Errors**: Ensure you're running from the project root directory
-2. **API Key Errors**: See [API Key Setup Guide](docs/api-keys.md) for detailed setup instructions
-3. **Pandoc Not Found**: Install Pandoc system-wide for EPUB conversion
-4. **SSL Errors**: The scraper automatically handles SSL issues
-5. **Rate Limiting**: Increase delays or reduce worker count
-
-### Debug Mode
-```bash
-# Enable verbose output (if implemented)
-python tool.py scrape -n "URL" "Title" --verbose
-
-# Check progress files for debugging
-cat "./Novels/Novel_Title/Novel_Title_progress.json"
-```
-
-## 💡 Tips & Best Practices
-
-1. **Start Small**: Test with `-m 10` for first attempts
-2. **Monitor Progress**: Check progress files for status
-3. **API Limits**: Respect rate limits, use appropriate delays
-4. **Backup**: Keep backups of progress files for long-running operations
-5. **Resource Usage**: Balance worker count with system resources
-
-## ⚠️ Disclaimer
-
-- Respect website terms of service when scraping
-- Use translation APIs responsibly within usage limits
-- Ensure you have rights to process the content
-- This tool is for educational and personal use
-
-## 🆘 Support
-
-For issues or questions:
-1. Check the troubleshooting section above
-2. Review console output for error messages
-3. Examine progress files for operation status
-4. Ensure all dependencies are properly installed
-
 ## ☕ Support the Project
 
 If this project has been helpful to you, consider supporting its development:
