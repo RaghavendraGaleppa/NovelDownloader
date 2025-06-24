@@ -221,101 +221,90 @@ project-root/
 │       │   └── ...
 │       ├── Novel_Title_progress.json              # Scraping progress
 │       └── Novel_Title_translation_progress.json  # Translation progress
+├── secrets.json                   # Your secret API keys (gitignored)
+├── secrets.example.json           # Example API key file
 └── scripts/                       # Utility scripts
     └── *.lua                      # Pandoc filters
 ```
 
 ## 🔧 Configuration
 
-### Environment Variables
-```bash
-# Required for translation - see docs/api-keys.md for setup instructions
-export API_KEY="your-api-key"
+### API Keys (`secrets.json`)
+All API configuration is managed in the `secrets.json` file. This allows for storing multiple keys and enables the automatic fallback feature.
 
-# Optional: Custom output directory
-export NOVELS_DIR="/path/to/novels"
-```
+1.  **Create `secrets.json`**: If it doesn't exist, copy the example file:
+    ```bash
+    cp secrets.example.json secrets.json
+    ```
+2.  **Add Your Keys**: Edit `secrets.json` to include your API keys. You can specify a custom name for each key, which will be used in the logs.
 
-**📖 For detailed API key setup instructions, see [docs/api-keys.md](docs/api-keys.md)**
+    ```json
+    {
+      "api_keys": [
+        {
+          "name": "Chutes Primary",
+          "provider": "chutes",
+          "key": "sk-your-chutes-key"
+        },
+        {
+          "name": "OpenRouter Fallback",
+          "provider": "openrouter",
+          "key": "sk-or-your-openrouter-key"
+        }
+      ]
+    }
+    ```
 
 ### API Validation
-The translation system automatically validates your API configuration before starting any translation work:
+The `validate` command is the best way to ensure your keys are configured correctly before starting a large job.
 
-#### Validation Checks
-1. **API Key Verification**: Ensures your API key is set and not empty
-2. **Provider Configuration**: Validates the specified API provider exists and is configured
-3. **Connectivity Test**: Performs a simple test call to verify the service is accessible
-4. **Clear Error Messages**: Provides specific guidance on how to fix configuration issues
+```bash
+# Test the first key in the list
+python tool.py validate
 
-#### Common Validation Errors
-- **API key not set**: See [API Key Setup Guide](docs/api-keys.md) for detailed setup instructions
-- **Empty API key**: Check that your API key value is correct
-- **Unknown provider**: Use `chutes` or `openrouter` as provider names
-- **Connectivity issues**: Check internet connection and API service status
-
-### API Providers
-Configure in `src/translation/openrouter.py`:
-- **Chutes API**: Default provider
-- **OpenRouter API**: Alternative provider
-- Add custom providers as needed
-
-**📖 For provider-specific setup instructions, see [docs/api-keys.md](docs/api-keys.md)**
+# Test all keys in secrets.json
+python tool.py validate --all
+```
 
 ## 🚨 Error Handling & Recovery
 
-The pipeline includes comprehensive error handling:
+The pipeline is designed for resilience and easy recovery from common issues.
 
 ### Scraping
-- **SSL Issues**: Automatic SSL bypass for problematic sites
-- **Rate Limiting**: Built-in delays between requests
-- **Progress Tracking**: Resume from last successful chapter
-- **Network Errors**: Automatic retries with exponential backoff
+-   **SSL Issues**: Automatically bypasses SSL verification for problematic sites.
+-   **Rate Limiting**: Includes built-in delays to avoid being blocked.
+-   **Resumption**: If a scrape is interrupted, you can easily resume it using the `scrape -r FOLDER_PATH` command. The tool uses the `_progress.json` file to pick up where it left off.
 
 ### Translation
-- **API Failures**: Tracks failed attempts per chapter
-- **Rate Limiting**: Configurable delays between API calls
-- **Retry Logic**: Retry-only mode for failed translations
-- **Multi-threading**: Parallel processing with error isolation
-- **API Validation**: Automatic validation of API keys and connectivity before starting translation
-
-### EPUB Conversion
-- **File Validation**: Checks for required input files
-- **Pandoc Errors**: Clear error messages for missing dependencies
-- **Natural Sorting**: Correct chapter ordering (1, 2, 10 vs 1, 10, 2)
+-   **API Key Fallback**: If an API call fails with one key (e.g., rate limit, server error), the system automatically retries the request with the next key in `secrets.json`.
+-   **Failed Chapter Tracking**: Failed attempts are tracked in the `_translation_progress.json` file.
+-   **Retry Failed Only**: You can run `translate -r` to specifically re-process only the chapters that failed previously.
+-   **Dynamic Discovery**: The translator runs in a loop, so if it stops for any reason, you can simply restart it, and it will find any remaining untranslated chapters.
 
 ## 📖 Advanced Usage
 
-### Resume Operations
-All operations support resuming from progress files:
+### Resuming Operations
+-   **Scraping**: Resume an interrupted scrape by providing the novel's folder path. The tool finds the progress file automatically.
+    ```bash
+    python tool.py scrape -r "./Novels/My_Awesome_Novel"
+    ```
+-   **Translation**: Translation is now a dynamic process. Simply run the command again, and it will pick up any untranslated chapters. To retry only failed chapters, use the `-r` flag.
+    ```bash
+    # Continue translating any new/pending chapters
+    python tool.py translate -n "./Novels/My_Awesome_Novel"
 
-```bash
-# Scraping automatically resumes if progress file exists
-python tool.py scrape -n "https://example.com" "Novel Title"
-
-# Translation tracks progress automatically
-python tool.py translate -n "./Novels/Novel_Title"
-
-# Retry only failed translations
-python tool.py translate -n "./Novels/Novel_Title" -r
-```
-
-### Custom Output Paths
-```bash
-# Custom scraping output
-python tool.py scrape -n "URL" "Title" -o "/custom/path"
-
-# Custom EPUB output
-python tool.py convert -f "./input/folder" -o "/custom/path/novel.epub"
-```
+    # Specifically retry chapters that failed before
+    python tool.py translate -n "./Novels/My_Awesome_Novel" -r
+    ```
 
 ### Parallel Processing
-```bash
-# Use multiple workers for faster translation
-python tool.py translate -n "./Novels/Novel_Title" -w 4
+Use the `-w` or `--workers` flag with the `translate` command to speed up translation.
 
-# Balance between speed and API rate limits
-python tool.py translate -n "./Novels/Novel_Title" -w 2 -p openrouter
+```bash
+# Use 4 worker threads for faster translation
+python tool.py translate -n "./Novels/My_Awesome_Novel" -w 4
 ```
+**Note**: Be mindful of your API provider's rate limits. Using too many workers can lead to keys being temporarily blocked. The automatic fallback helps, but setting a reasonable number of workers is best.
 
 ## 🔍 Troubleshooting
 
