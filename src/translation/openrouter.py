@@ -1,6 +1,7 @@
 import requests
 import os
 import json
+import copy
 from rich.console import Console
 
 # --- Configuration ---
@@ -76,7 +77,7 @@ def translate_chinese_to_english(text_to_translate: str, key_override: dict | No
             CONSOLE.print(f"⏩ Skipping key for unknown provider '{provider_name}' at index {i}.", style="yellow")
             continue
 
-        provider_config = api_providers[provider_name]
+        provider_config = copy.deepcopy(api_providers[provider_name])
         api_url = provider_config["url"]
         available_models = provider_config["model_names"]
 
