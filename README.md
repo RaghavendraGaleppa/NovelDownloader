@@ -4,13 +4,15 @@ A complete Python-based pipeline for scraping, translating, and converting Chine
 
 ## 🚀 Features
 
-- **Unified Tool Interface**: Single `tool.py` command for all operations
-- **Multi-Website Support**: Extract chapters from 69shu.com, 1qxs.com, and variants
-- **Progress Tracking**: Resume scraping and translation from where you left off
-- **AI Translation**: Translate Chinese text to English using multiple AI providers
-- **EPUB Generation**: Convert translated chapters into professional EPUB format
-- **Parallel Processing**: Multi-threaded translation for faster processing
-- **Robust Error Handling**: Automatic retries and comprehensive error recovery
+- **Unified Tool Interface**: A single, intuitive `tool.py` for all operations.
+- **Dynamic API Key Management**: Configure all your API keys in a single `secrets.json` file.
+- **Automatic Provider Fallback**: If one API key fails (rate limit, error), the tool automatically tries the next one.
+- **Multi-Website Support**: Scrape chapters from 69shu.com, 1qxs.com, and their variants.
+- **Resilient Scraping & Translation**: Resume scraping or translation from where you left off.
+- **Dynamic Chapter Discovery**: The translator automatically detects and processes new `RAW` chapters as you add them ("hot-reloading").
+- **Comprehensive Novel Statistics**: A dedicated `info` command to get a detailed progress report.
+- **Parallel Processing**: Multi-threaded translation for maximum speed.
+- **EPUB Generation**: Convert translated chapters into a professional EPUB format.
 
 ## 🌐 Supported Extraction Backends
 
@@ -32,164 +34,163 @@ The scraper supports multiple Chinese novel websites through specialized extract
 
 - Python 3.8 or higher
 - Pandoc (for EPUB conversion)
-- API key for translation service (OpenRouter, Chutes, etc.) - See [API Key Setup Guide](docs/api-keys.md)
+- API keys for one or more translation services (e.g., OpenRouter, Chutes).
 
 ## 🛠️ Installation
 
-1. **Clone the repository**:
-   ```bash
-   git clone <repository-url>
-   cd <repository-name>
-   ```
+1.  **Clone the repository**:
+    ```bash
+    git clone <repository-url>
+    cd <repository-name>
+    ```
 
-2. **Install Python dependencies**:
-   ```bash
-   pip install -r requirements.txt
-   ```
+2.  **Install Python dependencies**:
+    ```bash
+    pip install -r requirements.txt
+    ```
 
-3. **Install Pandoc**:
-   - **Ubuntu/Debian**: `sudo apt-get install pandoc`
-   - **macOS**: `brew install pandoc`
-   - **Windows**: Download from [pandoc.org](https://pandoc.org/installing.html)
+3.  **Install Pandoc**:
+    -   **Ubuntu/Debian**: `sudo apt-get install pandoc`
+    -   **macOS**: `brew install pandoc`
+    -   **Windows**: Download from [pandoc.org](https://pandoc.org/installing.html)
 
-4. **Set up API key** (for translation):
-   ```bash
-   export API_KEY="your-api-key"
-   ```
-   
-   📖 **Need help getting an API key?** See the detailed [API Key Setup Guide](docs/api-keys.md) for step-by-step instructions for OpenRouter and Chutes.
+4.  **Configure your API keys**:
+    -   Copy the example secrets file:
+        ```bash
+        cp secrets.example.json secrets.json
+        ```
+    -   Open `secrets.json` and add your API keys. You can add multiple keys from different providers. The tool will try them in order.
+
+        ```json
+        {
+          "api_keys": [
+            {
+              "name": "Chutes Primary",
+              "provider": "chutes",
+              "key": "YOUR_CHUTES_API_KEY_HERE"
+            },
+            {
+              "name": "OpenRouter Free Tier",
+              "provider": "openrouter",
+              "key": "YOUR_OPENROUTER_API_KEY_HERE"
+            }
+          ]
+        }
+        ```
+    - The `secrets.json` file is included in `.gitignore`, so your keys will not be committed.
 
 ## 🎯 Quick Start
 
-The unified `tool.py` provides four main commands for the complete workflow:
+The unified `tool.py` provides five main commands for the complete workflow:
 
 ```bash
 # Show help and examples
 python tool.py
 
-# Individual command help
-python tool.py validate --help
+# Show help for a specific command
 python tool.py scrape --help
 python tool.py translate --help
 python tool.py convert --help
+python tool.py validate --help
+python tool.py info --help
 ```
 
-## 📚 Complete Workflow
+## 📚 Complete Workflow Example
 
-### Option 1: Step-by-Step Workflow
-
-```bash
-# Step 0: Validate API configuration (recommended)
-python tool.py validate -p chutes
-
-# Step 1: Scrape novel chapters
-python tool.py scrape -n "https://www.69shu.com/book/123.htm" "Cultivation Master" -m 100
-
-# Step 2: Translate chapters to English
-python tool.py translate -n "./Novels/Cultivation_Master" -p chutes -w 2
-
-# Step 3: Convert to EPUB
-python tool.py convert -f "./Novels/Cultivation_Master/Cultivation_Master-English" -o "cultivation_master.epub" -t "Cultivation Master" -a "Unknown Author"
-```
-
-### Option 2: One-Line Examples
+This example shows how to scrape the first 50 chapters of a novel, check the progress, translate them, and finally convert them into an EPUB.
 
 ```bash
-# Validate API before starting
-python tool.py validate -p openrouter
+# Step 1: Validate your API keys in secrets.json (optional, but recommended)
+# Test only the first key for a quick check
+python tool.py validate
 
-# Quick scraping (first 10 chapters)
-python tool.py scrape -n "https://www.1qxs.com/novel/456" "Test Novel" -m 10
+# Or, test all keys to see which ones are working
+python tool.py validate --all
 
-# Translate with multiple workers
-python tool.py translate -n "./Novels/Test_Novel" -p openrouter -w 3
+# Step 2: Start scraping the first 50 chapters
+python tool.py scrape -n "https://www.69shu.com/book/123.htm" "My Awesome Novel" -m 50
 
-# Create EPUB with custom metadata
-python tool.py convert -f "./Novels/Test_Novel/Test_Novel-English" -o "test_novel.epub" -t "Test Novel" -a "Great Author"
+# Step 3 (can be run in a separate terminal while scraping):
+# Start translating. It will automatically find new chapters as they are scraped.
+python tool.py translate -n "./Novels/My_Awesome_Novel" -w 4
+
+# Step 4: Check the progress at any time
+python tool.py info -d "./Novels/My_Awesome_Novel"
+
+# Step 5: If scraping was interrupted, resume it
+python tool.py scrape -r "./Novels/My_Awesome_Novel" -m 50
+
+# Step 6: Once everything is translated, create the EPUB
+python tool.py convert -f "./Novels/My_Awesome_Novel/My_Awesome_Novel-English" \
+    -o "My_Awesome_Novel.epub" \
+    -t "My Awesome Novel" \
+    -a "The Author"
 ```
 
 ## 🔧 Detailed Command Usage
 
-### 0. Validate Command
-Test API configuration and connectivity before starting translation work.
+### 1. Validate (`validate`)
+Tests your API keys configured in `secrets.json`.
 
 ```bash
-python tool.py validate [-p PROVIDER]
+# Quick test using the first key
+python tool.py validate
 
-# Examples:
-python tool.py validate  # Test default (chutes) provider
-python tool.py validate -p openrouter  # Test OpenRouter provider
+# Test all keys
+python tool.py validate -a
 ```
+-   **What it checks**:
+    -   `secrets.json` exists and is formatted correctly.
+    -   Performs a simple API call to test connectivity and authentication for one or all keys.
 
-**Options:**
-- `-p, --provider`: API provider to validate (default: chutes)
-
-**What it checks:**
-- API key environment variable is set and not empty
-- Provider configuration exists and is valid
-- API connectivity with a simple test call
-- Provides clear error messages and solutions
-
-### 1. Scrape Command
-Extract novel chapters from supported websites.
-
-**Supported Sites:**
-- 69shu.com variants (69shu, shu69, 69shuba)
-- 1qxs.com
+### 2. Scrape (`scrape`)
+Scrapes novel chapters from supported websites.
 
 ```bash
-python tool.py scrape -n "URL" "TITLE" [-m MAX_CHAPTERS] [-o OUTPUT_PATH]
+# Start a new scrape
+python tool.py scrape -n "URL" "TITLE"
 
-# Examples:
-python tool.py scrape -n "https://www.69shu.com/book/123.htm" "My Novel"
-python tool.py scrape -n "https://www.1qxs.com/novel/456" "Another Novel" -m 50 -o "./CustomPath"
+# Resume a previous scrape from a folder
+python tool.py scrape -r "FOLDER_PATH"
 ```
+-   `-n, --new-scrape`: Starts a new scrape. Requires the novel's start URL and a title.
+-   `-r, --resume`: Resumes a scrape from a novel folder. Automatically finds the progress file.
+-   `-m, --max-chapters`: The maximum number of chapters to scrape in this session (default: 1000).
+-   `-o, --output-path`: Custom base directory for output (default: `./Novels`).
 
-**Options:**
-- `-n, --new-scrape`: Start new scrape (requires URL and title)
-- `-m, --max-chapters`: Maximum chapters per session (default: 1000)
-- `-o, --output-path`: Custom output directory (default: ./Novels/novel_title)
-
-### 2. Translate Command
-Translate scraped chapters using AI APIs.
-
-**Supported Providers:**
-- `chutes` (default)
-- `openrouter`
+### 3. Info (`info`)
+Displays detailed statistics about a novel's progress.
 
 ```bash
-python tool.py translate -n NOVEL_DIR [-r] [-p PROVIDER] [-w WORKERS]
-
-# Examples:
-python tool.py translate -n "./Novels/My_Novel"
-python tool.py translate -n "./Novels/My_Novel" -p openrouter -w 3
-python tool.py translate -n "./Novels/My_Novel" -r  # Retry failed only
-python tool.py translate -n "./Novels/My_Novel" --skip-validation  # Skip API validation (not recommended)
+python tool.py info -d "FOLDER_PATH"
 ```
+-   `-d, --novel-dir`: The base directory of the novel.
+-   **What it shows**:
+    -   Counts of raw and translated chapter files.
+    -   Detailed progress from the translation log (translated, failed, and untranslated counts).
 
-**Options:**
-- `-n, --novel-base-dir`: Novel directory containing Raws subdirectory
-- `-r, --retry-failed`: Only retry previously failed translations
-- `-p, --provider`: API provider (default: chutes)
-- `-w, --workers`: Number of worker threads (default: 1)
-- `--skip-validation`: Skip API validation before starting (not recommended)
-
-### 3. Convert Command
-Convert translated markdown files to EPUB format.
+### 4. Translate (`translate`)
+Translates raw chapters into English using the keys from `secrets.json`.
 
 ```bash
-python tool.py convert -f FOLDER_PATH -o OUTPUT.epub [-t TITLE] [-a AUTHOR]
-
-# Examples:
-python tool.py convert -f "./Novels/My_Novel/My_Novel-English" -o "my_novel.epub"
-python tool.py convert -f "./Novels/My_Novel/My_Novel-English" -o "my_novel.epub" -t "My Awesome Novel" -a "Great Author"
+python tool.py translate -n "FOLDER_PATH" [-r] [-w WORKERS]
 ```
+-   **Dynamic Discovery**: This command runs continuously, watching for new raw chapters and translating them as they appear. You can run this at the same time as the scraper.
+-   `-n, --novel-base-dir`: The base directory of the novel (must contain a `-Raws` subdirectory).
+-   `-w, --workers`: Number of parallel threads to use for translation (default: 1).
+-   `-r, --retry-failed`: In this mode, only chapters that have previously failed will be retried.
+-   `--skip-validation`: Skips the initial API key validation.
 
-**Options:**
-- `-f, --folder-path`: Path to folder with translated markdown files
-- `-o, --output-name`: Output EPUB filename
-- `-t, --title`: Book title for metadata (default: "My Awesome Book")
-- `-a, --author`: Author name for metadata (default: "Unknown Author")
+### 5. Convert (`convert`)
+Converts a folder of translated markdown files into a single EPUB file.
+
+```bash
+python tool.py convert -f "FOLDER_PATH" -o "OUTPUT.epub"
+```
+-   `-f, --folder-path`: The folder containing the translated `-English` markdown files.
+-   `-o, --output-name`: The desired filename for the final EPUB.
+-   `-t, --title`: The title of the book for the EPUB metadata.
+-   `-a, --author`: The author's name for the EPUB metadata.
 
 ## 📁 Project Structure
 
@@ -243,7 +244,7 @@ The translation system automatically validates your API configuration before sta
 #### Validation Checks
 1. **API Key Verification**: Ensures your API key is set and not empty
 2. **Provider Configuration**: Validates the specified API provider exists and is configured
-3. **Connectivity Test**: Performs a simple API call to verify the service is accessible
+3. **Connectivity Test**: Performs a simple test call to verify the service is accessible
 4. **Clear Error Messages**: Provides specific guidance on how to fix configuration issues
 
 #### Common Validation Errors
