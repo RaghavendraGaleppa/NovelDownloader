@@ -46,25 +46,29 @@ LOADED_API_KEYS = _load_api_keys()
 
 # --- Core Translation Logic ---
 
-def translate_chinese_to_english(text_to_translate: str) -> str:
+def translate_chinese_to_english(text_to_translate: str, key_override: dict | None = None) -> str:
     """
     Translates Chinese text to English using a fallback-enabled system based on keys in secrets.json.
     It will try each key and its associated models until one succeeds.
 
     Args:
         text_to_translate (str): The Chinese text to be translated.
+        key_override (dict | None): If provided, uses only this key info instead of the full list. For testing.
 
     Returns:
         str: The translated English text, or an error message if all keys and models fail.
     """
-    if not LOADED_API_KEYS:
+    keys_to_use = [key_override] if key_override else LOADED_API_KEYS
+
+    if not keys_to_use:
         return f"Error: No API keys found in {SECRETS_FILE} or the file is missing/invalid."
 
-    for i, key_info in enumerate(LOADED_API_KEYS):
+    for i, key_info in enumerate(keys_to_use):
         provider_name = key_info.get("provider")
         api_key = key_info.get("key")
+        key_name = key_info.get("name", f"Provider: {provider_name}")
 
-        if not all([provider_name, api_key]):
+        if not provider_name or not api_key:
             CONSOLE.print(f"⏩ Skipping invalid key entry at index {i} in {SECRETS_FILE} (missing 'provider' or 'key').", style="yellow")
             continue
 
@@ -76,7 +80,7 @@ def translate_chinese_to_english(text_to_translate: str) -> str:
         api_url = provider_config["url"]
         available_models = provider_config["model_names"]
 
-        CONSOLE.print(f"🔄 Attempting translation with provider: [bold cyan]{provider_name}[/bold cyan] (Key #{i + 1})", style="dim")
+        CONSOLE.print(f"🔄 Attempting translation with: [bold cyan]{key_name}[/bold cyan] (Key #{i + 1})", style="dim")
 
         headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
         
@@ -96,7 +100,7 @@ def translate_chinese_to_english(text_to_translate: str) -> str:
                 
                 if response_data and response_data.get("choices"):
                     translated_text = response_data["choices"][0]["message"]["content"].strip()
-                    CONSOLE.print(f"✅ Success with [bold cyan]{provider_name}[/bold cyan] using model [green]{model_name}[/green].", style="dim")
+                    CONSOLE.print(f"✅ Success with [bold cyan]{key_name}[/bold cyan] using model [green]{model_name}[/green].", style="dim")
                     return translated_text
                 else:
                     CONSOLE.print(f"⚠️  Warning: No translation found in API response for model {model_name}. Response: {response_data}", style="yellow")

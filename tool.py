@@ -79,12 +79,13 @@ def cmd_validate(args):
     from src.translation.translator import perform_api_validation
     
     # Perform validation
-    if perform_api_validation(args.provider):
-        print(f"\n✅ API validation successful for provider '{args.provider}'!")
+    if perform_api_validation(test_all_keys=args.all):
+        print(f"\n✅ API validation successful!")
+        print("Secrets file is valid and connectivity test passed.")
         print("You can now proceed with translation operations.")
     else:
-        print(f"\n❌ API validation failed for provider '{args.provider}'.")
-        print("Please fix the issues above before attempting translation.")
+        print(f"\n❌ API validation failed.")
+        print("Please fix the issues reported above before attempting translation.")
 
 
 def cmd_translate(args):
@@ -267,7 +268,12 @@ def main():
     validate_parser.add_argument(
         '-p', '--provider',
         default='chutes',
-        help='The API provider to validate (e.g., "chutes", "openrouter"). This is ignored by the new key system but kept for compatibility.'
+        help='This argument is now ignored. API providers are determined by secrets.json.'
+    )
+    validate_parser.add_argument(
+        '-a', '--all',
+        action='store_true',
+        help='Validate all keys in secrets.json instead of just the first one.'
     )
     validate_parser.set_defaults(func=cmd_validate)
     

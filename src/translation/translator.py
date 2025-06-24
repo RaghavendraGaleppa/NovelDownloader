@@ -40,31 +40,56 @@ def validate_api_keys() -> tuple[bool, str | None]:
         
     return True, None
 
-def test_api_connectivity() -> tuple[bool, str]:
+def test_api_connectivity(test_all: bool = False) -> tuple[bool, str]:
     """
-    Tests API connectivity by attempting a simple translation with the available keys.
+    Tests API connectivity by attempting a simple translation.
     
+    Args:
+        test_all (bool): If True, tests all keys. If False, tests only the first valid key.
+        
     Returns:
         tuple: (is_connected: bool, result_message: str)
     """
     test_message = "Hello"
+    keys_to_test = LOADED_API_KEYS if test_all else LOADED_API_KEYS[:1]
     
-    console.print(f"🔍 Testing API connectivity with loaded keys...", style="blue")
-    
-    try:
-        result = translate_chinese_to_english(test_message)
-        
-        # Check if the result indicates an error from the fallback chain
-        if result.startswith("Error:"):
-            return False, f"API test failed: {result}"
-        
-        console.print(f"✅ API connectivity test successful.", style="green")
-        return True, "API connectivity test successful"
-        
-    except Exception as e:
-        return False, f"API test failed with exception: {e}"
+    if not keys_to_test:
+        return False, "No keys available to test."
 
-def perform_api_validation() -> bool:
+    console.print(f"🔍 Testing API connectivity for {len(keys_to_test)} key(s)...", style="blue")
+    
+    overall_success = True
+    final_message = ""
+
+    for i, key_info in enumerate(keys_to_test):
+        provider_name = key_info.get("provider")
+        key_name = key_info.get("name", f"Provider: {provider_name}")
+        
+        console.print(f"  - Testing Key #{i + 1}: [bold cyan]{key_name}[/bold cyan]...", end="")
+        
+        # This is a simplified, targeted test, not using the full fallback logic.
+        try:
+            # We are calling a simplified, targeted version of translate for testing
+            result = translate_chinese_to_english(test_message, key_override=key_info)
+            
+            if result.startswith("Error:"):
+                console.print(" [bold red]FAILED[/bold red]")
+                final_message += f"\n  - {key_name}: {result}"
+                overall_success = False
+            else:
+                console.print(" [bold green]SUCCESS[/bold green]")
+
+        except Exception as e:
+            console.print(" [bold red]FAILED[/bold red]")
+            final_message += f"\n  - {key_name}: Exception - {e}"
+            overall_success = False
+
+    if overall_success:
+        return True, "All tested keys connected successfully."
+    else:
+        return False, f"One or more API keys failed the connectivity test:{final_message}"
+
+def perform_api_validation(test_all_keys: bool = False) -> bool:
     """
     Performs complete API validation including key file check and connectivity.
     
@@ -78,10 +103,10 @@ def perform_api_validation() -> bool:
     if not config_valid:
         console.print(f"❌ API Configuration Error: {config_error}", style="red")
         console.print("\n💡 To fix this:", style="yellow")
-        if "not found" in config_error:
+        if config_error and "not found" in config_error:
             console.print("   1. Copy 'secrets.example.json' to 'secrets.json'", style="cyan")
             console.print("   2. Add your API keys to 'secrets.json'", style="cyan")
-        elif "No valid API keys" in config_error:
+        elif config_error and "No valid API keys" in config_error:
             console.print("   1. Ensure 'secrets.json' contains a list under the 'api_keys' key.", style="cyan")
             console.print("   2. Ensure each item has a 'provider' and 'key'.", style="cyan")
         return False
@@ -89,7 +114,7 @@ def perform_api_validation() -> bool:
     console.print("✅ API key configuration is valid.", style="green")
     
     # Step 2: Test connectivity
-    connectivity_valid, connectivity_message = test_api_connectivity()
+    connectivity_valid, connectivity_message = test_api_connectivity(test_all=test_all_keys)
     if not connectivity_valid:
         console.print(f"❌ API Connectivity Error: {connectivity_message}", style="red")
         console.print("\n💡 Possible solutions:", style="yellow")
