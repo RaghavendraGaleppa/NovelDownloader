@@ -14,6 +14,8 @@ Usage:
 import argparse
 import sys
 import os
+import json
+from rich.console import Console
 
 # Import the main functions from our organized modules
 from src.scraping.parse_chapter import main as scrape_main
@@ -109,7 +111,6 @@ def cmd_translate(args):
     # Call the translation function with the specified parameters
     translate_novel_chapters(
         novel_base_directory=args.novel_base_directory,
-        api_provider_name=args.provider,
         retry_failed_only=args.retry_failed,
         skip_validation=args.skip_validation
     )
@@ -128,6 +129,85 @@ def cmd_convert(args):
     )
 
 
+def cmd_info(args):
+    """Handle the info subcommand"""
+    console = Console()
+    
+    novel_base_directory = args.novel_base_directory
+    
+    if not os.path.isdir(novel_base_directory):
+        console.print(f"❌ Error: The provided path '{novel_base_directory}' is not a valid directory.", style="red")
+        return
+
+    novel_name_from_dir = os.path.basename(os.path.normpath(novel_base_directory))
+    
+    console.print(f"\n📊 [bold]Novel Statistics for '{novel_name_from_dir}'[/bold]", style="cyan")
+    console.print("-" * 60)
+    console.print(f"[bold]Novel Directory:[/bold] {os.path.abspath(novel_base_directory)}")
+
+    # --- Raw File Stats ---
+    raws_dir = os.path.join(novel_base_directory, f"{novel_name_from_dir}-Raws")
+    num_raw_chapters = 0
+    if os.path.isdir(raws_dir):
+        try:
+            raw_files = [f for f in os.listdir(raws_dir) if f.startswith("Chapter_") and f.endswith(".md")]
+            num_raw_chapters = len(raw_files)
+        except OSError as e:
+            console.print(f"Could not read Raws directory: {e}", style="red")
+    
+    # --- Translated File Stats ---
+    translated_raws_dir = os.path.join(novel_base_directory, f"{novel_name_from_dir}-English")
+    num_translated_files = 0
+    if os.path.isdir(translated_raws_dir):
+        try:
+            translated_files = [f for f in os.listdir(translated_raws_dir) if f.startswith("Chapter_") and f.endswith(".md")]
+            num_translated_files = len(translated_files)
+        except OSError as e:
+            console.print(f"Could not read English directory: {e}", style="red")
+
+    console.print("\n[bold]--- File System Counts ---[/bold]")
+    console.print(f"Raw Chapters:      [bold green]{num_raw_chapters}[/bold green]")
+    console.print(f"Translated Files:  [bold blue]{num_translated_files}[/bold blue]")
+
+    # --- Progress File Stats ---
+    progress_file_path = os.path.join(novel_base_directory, f"{novel_name_from_dir}_translation_progress.json")
+    if os.path.exists(progress_file_path):
+        console.print("\n[bold]--- Translation Progress (from progress.json) ---[/bold]")
+        try:
+            with open(progress_file_path, 'r', encoding='utf-8') as pf:
+                progress_data = json.load(pf)
+            
+            last_provider = progress_data.get("last_used_provider", "N/A")
+            translated_in_progress = progress_data.get("translated_files", [])
+            failed_in_progress = progress_data.get("failed_translation_attempts", {})
+            
+            num_translated_progress = len(translated_in_progress)
+            num_failed_progress = len(failed_in_progress)
+            
+            # This is a more accurate count of what's left for the translator
+            untranslated_count = num_raw_chapters - num_translated_progress
+            
+            console.print(f"Last Used Provider: [yellow]{last_provider}[/yellow]")
+            console.print(f"✅ Translated Chapters: [bold green]{num_translated_progress}[/bold green]")
+            console.print(f"❌ Failed Chapters:     [bold red]{num_failed_progress}[/bold red]")
+            
+            if failed_in_progress:
+                console.print("   [dim]Failed chapters:[/dim]")
+                for fname, count in list(failed_in_progress.items())[:5]: # Show first 5
+                    console.print(f"   - {fname}: {count} attempts", style="dim yellow")
+                if len(failed_in_progress) > 5:
+                    console.print("   ...", style="dim yellow")
+
+            console.print(f"🤔 Untranslated:        [bold yellow]{untranslated_count}[/bold yellow] (based on raw files vs progress file)")
+
+        except (json.JSONDecodeError, IOError) as e:
+            console.print(f"Error reading progress file: {e}", style="red")
+    else:
+        console.print("\n[dim]No translation progress file found.[/dim]")
+
+    console.print("-" * 60)
+
+
 def main():
     """Main entry point for the unified tool"""
     parser = argparse.ArgumentParser(
@@ -139,7 +219,7 @@ def main():
     subparsers = parser.add_subparsers(
         dest='command',
         help='Available commands',
-        metavar='{scrape,translate,convert,validate}'
+        metavar='{scrape,translate,convert,validate,info}'
     )
     
     # ===== SCRAPE SUBCOMMAND =====
@@ -187,7 +267,7 @@ def main():
     validate_parser.add_argument(
         '-p', '--provider',
         default='chutes',
-        help='The API provider to validate (e.g., "chutes", "openrouter"). Default: chutes'
+        help='The API provider to validate (e.g., "chutes", "openrouter"). This is ignored by the new key system but kept for compatibility.'
     )
     validate_parser.set_defaults(func=cmd_validate)
     
@@ -212,7 +292,7 @@ def main():
     translate_parser.add_argument(
         '-p', '--provider',
         default='chutes',
-        help='The API provider to use (e.g., "chutes", "openrouter"). Default: chutes'
+        help='This argument is now ignored. API providers are determined by secrets.json.'
     )
     translate_parser.add_argument(
         '-w', '--workers',
@@ -256,6 +336,21 @@ def main():
     )
     convert_parser.set_defaults(func=cmd_convert)
     
+    # ===== INFO SUBCOMMAND =====
+    info_parser = subparsers.add_parser(
+        'info',
+        help='Get statistics for a novel folder',
+        description='Display statistics about raw, translated, and failed chapters for a novel.',
+        formatter_class=argparse.RawTextHelpFormatter
+    )
+    info_parser.add_argument(
+        '-d', '--novel-dir',
+        dest='novel_base_directory',
+        required=True,
+        help='The base directory of the novel to get stats for.'
+    )
+    info_parser.set_defaults(func=cmd_info)
+    
     # Parse arguments
     args = parser.parse_args()
     
@@ -265,6 +360,9 @@ def main():
         print("\n" + "="*60)
         print("EXAMPLES:")
         print("="*60)
+        print("# Get info about a novel:")
+        print('python tool.py info -d "./Novels/My_Novel"')
+        print()
         print("# Validate API configuration:")
         print('python tool.py validate -p chutes')
         print()
@@ -284,6 +382,7 @@ def main():
         print('python tool.py validate -p chutes  # Test API first')
         print('python tool.py scrape -n "https://www.69shu.com/book/123.htm" "My Novel" -m 50')
         print('python tool.py scrape -r "Novels/My_Novel"  # Resume if needed')
+        print('python tool.py info -d "./Novels/My_Novel"  # Check progress')
         print('python tool.py translate -n "./Novels/My_Novel" -p chutes -w 2')
         print('python tool.py convert -f "./Novels/My_Novel/My_Novel-English" -o "my_novel.epub" -t "My Novel" -a "Author"')
         return

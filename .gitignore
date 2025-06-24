@@ -196,3 +196,19 @@ cython_debug/
 
 # CUSTOM
 Novels/*
+
+# Secrets
+secrets.json
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Virtual environment
+.venv/
+venv/
+ENV/
+
+# IDE files
+.vscode/
+.idea/

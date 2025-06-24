@@ -13,112 +13,92 @@ console = Console()
 
 # Attempt to import the translation function and providers
 try:
-    from src.translation.openrouter import translate_chinese_to_english, api_providers # model_names no longer directly needed here
+    from src.translation.openrouter import translate_chinese_to_english, api_providers, LOADED_API_KEYS
     TRANSLATION_AVAILABLE = True
 except ImportError:
     console.print("⚠️  WARNING: openrouter.py not found or its components could not be imported.", style="yellow")
     console.print("Translation functionality will be disabled; using placeholder.", style="yellow")
     TRANSLATION_AVAILABLE = False
     api_providers = {} # Define as empty if import fails
+    LOADED_API_KEYS = []
 
-def validate_api_configuration(api_provider_name: str) -> tuple[bool, str | None]:
+def validate_api_keys() -> tuple[bool, str | None]:
     """
-    Validates API configuration and connectivity.
+    Validates that the secrets.json file exists and contains at least one valid key.
     
-    Args:
-        api_provider_name: The API provider to validate
-        
     Returns:
         tuple: (is_valid: bool, error_message: str or None)
     """
     if not TRANSLATION_AVAILABLE:
         return False, "Translation module not available"
     
-    # Check if provider exists
-    if api_provider_name not in api_providers:
-        available_providers = ', '.join(api_providers.keys())
-        return False, f"Unknown API provider '{api_provider_name}'. Available providers: {available_providers}"
-    
-    provider_config = api_providers[api_provider_name]
-    api_key_env_var = provider_config.get("api_key_env_var", "API_KEY")
-    
-    # Check if API key is set and not empty
-    api_key = os.getenv(api_key_env_var)
-    if not api_key:
-        return False, f"API key environment variable '{api_key_env_var}' is not set"
-    
-    if not api_key.strip():
-        return False, f"API key environment variable '{api_key_env_var}' is empty"
-    
+    if not os.path.exists("secrets.json"):
+        return False, "secrets.json file not found. Please create it from secrets.example.json."
+        
+    if not LOADED_API_KEYS:
+        return False, "No valid API keys found in secrets.json. Please check the file format."
+        
     return True, None
 
-def test_api_connectivity(api_provider_name: str) -> tuple[bool, str]:
+def test_api_connectivity() -> tuple[bool, str]:
     """
-    Tests API connectivity with a simple hello message.
+    Tests API connectivity by attempting a simple translation with the available keys.
     
-    Args:
-        api_provider_name: The API provider to test
-        
     Returns:
         tuple: (is_connected: bool, result_message: str)
     """
     test_message = "Hello"
     
-    console.print(f"🔍 Testing API connectivity for '{api_provider_name}'...", style="blue")
+    console.print(f"🔍 Testing API connectivity with loaded keys...", style="blue")
     
     try:
-        result = translate_chinese_to_english(test_message, api_provider_name=api_provider_name)
+        result = translate_chinese_to_english(test_message)
         
-        # Check if the result indicates an error
-        if result.startswith(("Error:", "HTTP error", "Connection error", 
-                             "Timeout error", "An unexpected error", 
-                             "An unforeseen error", "Rate limit exceeded")):
+        # Check if the result indicates an error from the fallback chain
+        if result.startswith("Error:"):
             return False, f"API test failed: {result}"
         
-        console.print(f"✅ API connectivity test successful for '{api_provider_name}'", style="green")
+        console.print(f"✅ API connectivity test successful.", style="green")
         return True, "API connectivity test successful"
         
     except Exception as e:
         return False, f"API test failed with exception: {e}"
 
-def perform_api_validation(api_provider_name: str) -> bool:
+def perform_api_validation() -> bool:
     """
-    Performs complete API validation including configuration and connectivity checks.
+    Performs complete API validation including key file check and connectivity.
     
-    Args:
-        api_provider_name: The API provider to validate
-        
     Returns:
         bool: True if validation passes, False otherwise
     """
-    console.print(f"\n🔧 Validating API configuration for '{api_provider_name}'...", style="bold blue")
+    console.print(f"\n🔧 Validating API key configuration from secrets.json...", style="bold blue")
     
-    # Step 1: Validate configuration
-    config_valid, config_error = validate_api_configuration(api_provider_name)
+    # Step 1: Validate key file and contents
+    config_valid, config_error = validate_api_keys()
     if not config_valid:
         console.print(f"❌ API Configuration Error: {config_error}", style="red")
         console.print("\n💡 To fix this:", style="yellow")
-        if config_error and ("not set" in config_error or "empty" in config_error):
-            api_key_env_var = api_providers.get(api_provider_name, {}).get("api_key_env_var", "API_KEY")
-            console.print(f"   1. Set your API key: export {api_key_env_var}=\"your-api-key-here\"", style="cyan")
-            console.print(f"   2. Restart your terminal or source your environment", style="cyan")
-        elif config_error and "Unknown API provider" in config_error:
-            console.print(f"   1. Use a valid provider name from the available options", style="cyan")
+        if "not found" in config_error:
+            console.print("   1. Copy 'secrets.example.json' to 'secrets.json'", style="cyan")
+            console.print("   2. Add your API keys to 'secrets.json'", style="cyan")
+        elif "No valid API keys" in config_error:
+            console.print("   1. Ensure 'secrets.json' contains a list under the 'api_keys' key.", style="cyan")
+            console.print("   2. Ensure each item has a 'provider' and 'key'.", style="cyan")
         return False
     
-    console.print("✅ API configuration is valid", style="green")
+    console.print("✅ API key configuration is valid.", style="green")
     
     # Step 2: Test connectivity
-    connectivity_valid, connectivity_message = test_api_connectivity(api_provider_name)
+    connectivity_valid, connectivity_message = test_api_connectivity()
     if not connectivity_valid:
         console.print(f"❌ API Connectivity Error: {connectivity_message}", style="red")
         console.print("\n💡 Possible solutions:", style="yellow")
-        console.print("   1. Check your internet connection", style="cyan")
-        console.print("   2. Verify your API key is correct and has sufficient credits", style="cyan")
-        console.print("   3. Check if the API service is currently available", style="cyan")
+        console.print("   1. Check your internet connection.", style="cyan")
+        console.print("   2. Verify your API keys in secrets.json are correct and have sufficient credits.", style="cyan")
+        console.print("   3. Check if the API services (Chutes, OpenRouter) are available.", style="cyan")
         return False
     
-    console.print("✅ API validation completed successfully", style="bold green")
+    console.print("✅ API validation completed successfully.", style="bold green")
     return True
 
 def extract_chapter_number(filename: str) -> int:
@@ -128,26 +108,21 @@ def extract_chapter_number(filename: str) -> int:
         return int(match.group(1))
     return -1 # Indicates an issue or non-standard filename
 
-def translate(text: str, api_provider_name: str) -> str:
+def translate(text: str) -> str:
     """
-    Translates text using the specified provider from OpenRouter API if available,
+    Translates text using the fallback logic from OpenRouter API if available,
     otherwise returns original text (placeholder behavior).
     """
     if TRANSLATION_AVAILABLE:
-        # The API key is now handled within translate_chinese_to_english based on the provider
-        # print(f"    Attempting actual translation for text snippet: '{text[:70].replace('\\n', ' ')}...' with provider: {api_provider_name}")
-        translated_text = translate_chinese_to_english(text, api_provider_name=api_provider_name)
+        translated_text = translate_chinese_to_english(text)
         
         # Check if the translation itself returned an error string from the API wrapper
         if translated_text.startswith(("Error:", "HTTP error", "Connection error", 
                                        "Timeout error", "An unexpected error", 
-                                       "An unforeseen error", "Rate limit exceeded")): # Added Rate limit
-            # The error message is already formatted by translate_chinese_to_english
+                                       "An unforeseen error", "Rate limit exceeded")):
             return translated_text # Propagate the error message
         return translated_text
     else:
-        # This warning is already printed at import time
-        # print("    Warning: Translation module not available, returning original text.")
         return text # Placeholder behavior
 
 def _ensure_directory_exists(dir_path: str) -> bool:
@@ -202,42 +177,28 @@ def _read_chapter_content(chapter_filename, raws_dir):
     except Exception as e:
         return False, "", f"Error reading file: {e}"
 
-def _determine_translation_context(api_provider_name):
+def _determine_translation_context():
     """
-    Determines the translation context and checks for API availability.
-    
-    Returns:
-        tuple: (has_real_translation: bool, info_message: str or None)
+    Determines if a real translation can be attempted.
     """
-    if not TRANSLATION_AVAILABLE:
-        return False, "Translation module not available, using placeholder"
-    elif not os.getenv("API_KEY"):
-        return False, "API_KEY not set, using placeholder"
+    if not TRANSLATION_AVAILABLE or not LOADED_API_KEYS:
+        return False, "Translation module/keys not available, using placeholder"
     else:
         return True, None
 
-def _perform_translation_with_timing(raw_content, api_provider_name, chapter_filename, status_or_console):
+def _perform_translation_with_timing(raw_content, chapter_filename, status_or_console):
     """
     Performs the actual translation with timing and status updates.
-    
-    Args:
-        status_or_console: Either a rich status object or console object
-    
-    Returns:
-        tuple: (success: bool, translated_content: str, translation_time: float, error_message: str or None)
     """
     translation_start = time.time()
     
-    # Update status if it has an update method (status spinner), otherwise just proceed
     if hasattr(status_or_console, 'update'):
-        status_or_console.update(f"Translating {chapter_filename} using {api_provider_name}...")
+        status_or_console.update(f"Translating {chapter_filename}...")
     
-    translated_content = translate(raw_content, api_provider_name=api_provider_name)
+    translated_content = translate(raw_content)
     translation_time = time.time() - translation_start
     
-    if translated_content.startswith(("Error:", "HTTP error", "Connection error", 
-                                      "Timeout error", "An unexpected error", 
-                                      "An unforeseen error", "Rate limit exceeded")):
+    if translated_content.startswith(("Error:", "HTTP error")):
         return False, translated_content, translation_time, f"Translation API Error: {translated_content}"
     
     return True, translated_content, translation_time, None
@@ -293,7 +254,7 @@ def _update_translation_progress(chapter_filename, progress_data, progress_file_
         except IOError:
             pass
 
-def _process_single_chapter(chapter_filename, retry_failed_only, progress_data, raws_dir, translated_raws_dir, progress_file_path, api_provider_name, max_retries_per_chapter, progress_lock, use_status_spinner=True):
+def _process_single_chapter(chapter_filename, retry_failed_only, progress_data, raws_dir, translated_raws_dir, progress_file_path, max_retries_per_chapter, progress_lock, use_status_spinner=True):
     """
     Processes a single chapter file for translation using modular helper functions.
     
@@ -304,7 +265,6 @@ def _process_single_chapter(chapter_filename, retry_failed_only, progress_data, 
         raws_dir: Directory containing raw chapter files
         translated_raws_dir: Directory for translated chapter files
         progress_file_path: Path to progress JSON file
-        api_provider_name: API provider name for translation
         max_retries_per_chapter: Maximum retry attempts per chapter
         progress_lock: Threading lock for progress data access
         use_status_spinner: Whether to use a status spinner for console output
@@ -324,7 +284,7 @@ def _process_single_chapter(chapter_filename, retry_failed_only, progress_data, 
         return (True if "skipped" in validation_error else False, chapter_filename, validation_error, 0.0)
     
     # Step 2: Create status context for thread-safe output
-    status_text = f"Starting translation of {chapter_filename} using {api_provider_name}..."
+    status_text = f"Starting translation of {chapter_filename}..."
     
     try:
         if use_status_spinner:
@@ -337,11 +297,11 @@ def _process_single_chapter(chapter_filename, retry_failed_only, progress_data, 
                     return (False, chapter_filename, read_error, 0.0)
                 
                 # Step 4: Determine translation context
-                has_real_translation, info_msg = _determine_translation_context(api_provider_name)
+                has_real_translation, info_msg = _determine_translation_context()
                 
                 # Step 5: Perform translation with timing
                 translation_success, translated_content, translation_time, translation_error = _perform_translation_with_timing(
-                    raw_content, api_provider_name, chapter_filename, status
+                    raw_content, chapter_filename, status
                 )
                 
                 if not translation_success:
@@ -392,11 +352,11 @@ def _process_single_chapter(chapter_filename, retry_failed_only, progress_data, 
                 return (False, chapter_filename, read_error, 0.0)
             
             # Step 4: Determine translation context
-            has_real_translation, info_msg = _determine_translation_context(api_provider_name)
+            has_real_translation, info_msg = _determine_translation_context()
             
             # Step 5: Perform translation with timing
             translation_success, translated_content, translation_time, translation_error = _perform_translation_with_timing(
-                raw_content, api_provider_name, chapter_filename, console
+                raw_content, chapter_filename, console
             )
             
             if not translation_success:
@@ -445,7 +405,7 @@ def _process_single_chapter(chapter_filename, retry_failed_only, progress_data, 
         _update_translation_progress(chapter_filename, progress_data, progress_file_path, progress_lock, success=False)
         return (False, chapter_filename, f"Processing error: {e}", 0.0)
 
-def _process_chapters(files_to_process, retry_failed_only, progress_data, raws_dir, translated_raws_dir, progress_file_path, api_provider_name, novel_name_from_dir, max_retries_per_chapter=3, api_call_delay=5, workers=1):
+def _process_chapters(files_to_process, retry_failed_only, progress_data, raws_dir, translated_raws_dir, progress_file_path, novel_name_from_dir, max_retries_per_chapter=3, api_call_delay=5, workers=1):
     """
     Processes a list of chapter files for translation using multiple workers.
     
@@ -456,7 +416,6 @@ def _process_chapters(files_to_process, retry_failed_only, progress_data, raws_d
         raws_dir: Directory containing raw chapter files
         translated_raws_dir: Directory for translated chapter files
         progress_file_path: Path to progress JSON file
-        api_provider_name: API provider name for translation
         novel_name_from_dir: Novel title from directory name
         max_retries_per_chapter: Maximum retry attempts per chapter
         api_call_delay: Delay between API calls in seconds
@@ -478,7 +437,7 @@ def _process_chapters(files_to_process, retry_failed_only, progress_data, raws_d
             chapter_start_time = time.time()
             success, filename, message, translation_time = _process_single_chapter(
                 chapter_filename, retry_failed_only, progress_data, raws_dir, translated_raws_dir,
-                progress_file_path, api_provider_name, max_retries_per_chapter, progress_lock, use_status_spinner=True
+                progress_file_path, max_retries_per_chapter, progress_lock, use_status_spinner=True
             )
             chapter_end_time = time.time()
             chapter_duration = chapter_end_time - chapter_start_time
@@ -513,8 +472,7 @@ def _process_chapters(files_to_process, retry_failed_only, progress_data, raws_d
             for chapter_filename in files_to_process:
                 chapter_start_time = time.time()
                 future = executor.submit(_process_single_chapter, chapter_filename, retry_failed_only, progress_data, 
-                                       raws_dir, translated_raws_dir, progress_file_path, api_provider_name, 
-                                       max_retries_per_chapter, progress_lock, use_status_spinner=False)
+                                       raws_dir, translated_raws_dir, progress_file_path, max_retries_per_chapter, progress_lock, use_status_spinner=False)
                 future_to_chapter[future] = chapter_filename
                 chapter_start_times[future] = chapter_start_time
             
@@ -591,14 +549,13 @@ def _process_chapters(files_to_process, retry_failed_only, progress_data, raws_d
     
     return chapters_processed_this_session
 
-def translate_novel_chapters(novel_base_directory: str, api_provider_name: str, retry_failed_only: bool = False, skip_validation: bool = False):
+def translate_novel_chapters(novel_base_directory: str, retry_failed_only: bool = False, skip_validation: bool = False):
     """
     Processes raw chapter files, translates them using the specified provider, and saves them.
     Maintains progress and can optionally only retry previously failed translations.
     
     Args:
         novel_base_directory: Base directory containing the novel files
-        api_provider_name: API provider to use for translation
         retry_failed_only: Whether to only retry previously failed translations
         skip_validation: Whether to skip API validation (default: False, validation runs by default)
     """
@@ -606,7 +563,7 @@ def translate_novel_chapters(novel_base_directory: str, api_provider_name: str, 
 
     # Perform API validation before starting translation (unless skipped)
     if not skip_validation:
-        if not perform_api_validation(api_provider_name):
+        if not perform_api_validation():
             console.print("\n❌ API validation failed. Cannot proceed with translation.", style="bold red")
             console.print("Please fix the API configuration issues above and try again.", style="yellow")
             console.print("💡 Tip: Use --skip-validation to bypass this check (not recommended).", style="cyan")
@@ -629,7 +586,7 @@ def translate_novel_chapters(novel_base_directory: str, api_provider_name: str, 
         "novel_title": novel_name_from_dir,
         "raws_directory": os.path.abspath(raws_dir),
         "translated_raws_directory": os.path.abspath(translated_raws_dir),
-        "last_used_provider": api_provider_name, # Store the provider used
+        "last_used_provider": "dynamic (see secrets.json)",
         "translated_files": [],
         "failed_translation_attempts": {}
     }
@@ -639,12 +596,7 @@ def translate_novel_chapters(novel_base_directory: str, api_provider_name: str, 
                 loaded_progress = json.load(pf)
                 if loaded_progress.get("novel_title") == novel_name_from_dir:
                     progress_data.update(loaded_progress)
-                    progress_data["last_used_provider"] = api_provider_name # Update with current provider
-                    if 'failed_translation_attempts' not in progress_data:
-                        progress_data['failed_translation_attempts'] = {}
                     console.print(f"📂 Loaded translation progress from: {progress_file_path}", style="blue")
-                    if loaded_progress.get("last_used_provider") and loaded_progress.get("last_used_provider") != api_provider_name:
-                        console.print(f"  ℹ️  Note: Previous translations used provider '{loaded_progress.get('last_used_provider')}'. Current session is using '{api_provider_name}'.", style="cyan")
                 else:
                     console.print(f"⚠️  Warning: Progress file found ({progress_file_path}) but novel title mismatch. Using fresh translation data for this directory.", style="yellow")
         except (json.JSONDecodeError, IOError) as e:
@@ -665,7 +617,7 @@ def translate_novel_chapters(novel_base_directory: str, api_provider_name: str, 
         console.print(f"🔍 Found {len(files_to_process)} chapters to retry.", style="yellow")
         
         # Process the failed chapters once and exit
-        chapters_processed_this_session = _process_chapters(files_to_process, retry_failed_only, progress_data, raws_dir, translated_raws_dir, progress_file_path, api_provider_name, novel_name_from_dir, workers=args.workers)
+        chapters_processed_this_session = _process_chapters(files_to_process, retry_failed_only, progress_data, raws_dir, translated_raws_dir, progress_file_path, novel_name_from_dir, workers=args.workers)
     else:
         console.print("🆕 Mode: Standard Translation (New & Unfinished) - Dynamic Discovery", style="bold green")
         console.print("📁 Will continuously check for new chapters during translation...", style="cyan")
@@ -716,7 +668,6 @@ def translate_novel_chapters(novel_base_directory: str, api_provider_name: str, 
                 raws_dir, 
                 translated_raws_dir, 
                 progress_file_path, 
-                api_provider_name, 
                 novel_name_from_dir, 
                 workers=args.workers
             )
@@ -739,7 +690,7 @@ def translate_novel_chapters(novel_base_directory: str, api_provider_name: str, 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Translate raw novel chapters using OpenRouter API or a placeholder."
+        description="Translate raw novel chapters using the dynamic key system."
     )
     parser.add_argument("-n", "--novel-base-dir", 
                         dest="novel_base_directory",
@@ -748,10 +699,6 @@ if __name__ == "__main__":
     parser.add_argument("-r", "--retry-failed",
                         action="store_true",
                         help="Only attempt to translate chapters that previously failed.")
-    parser.add_argument("-p", "--provider",
-                        dest="api_provider_name",
-                        default="chutes",
-                        help="The API provider to use (e.g., 'chutes', 'openrouter'). Defaults to 'chutes'.")
     
     parser.add_argument("-w", "--workers",
                         type=int,
@@ -764,20 +711,13 @@ if __name__ == "__main__":
     
     args = parser.parse_args()
 
-    # The API key is now sourced by openrouter.py based on the provider.
-    # We just check if API_KEY is set for a general warning if real translation is expected.
-    console.print(f"Selected API Provider: {args.api_provider_name}")
-    if TRANSLATION_AVAILABLE and not os.getenv("API_KEY"):
-        console.print("WARNING: API_KEY environment variable not set.", style="yellow")
-        console.print(f"Ensure API_KEY is set to the correct key for the '{args.api_provider_name}' provider if you expect real translations.", style="cyan")
-        console.print("Proceeding, but will use placeholder translation if API calls fail due to missing key.", style="yellow")
-        # Decide if you want to exit or proceed with placeholder
-        # exit(1) # Uncomment to exit if API key is strictly required
-
+    # No longer need to check for provider or individual API_KEY env var here.
+    # The check is now inside the validation function.
     if not os.path.isdir(args.novel_base_directory):
         console.print(f"❌ Error: The provided path '{args.novel_base_directory}' is not a valid directory.", style="red")
     else:
-        translate_novel_chapters(args.novel_base_directory, 
-                                 api_provider_name=args.api_provider_name, 
-                                 retry_failed_only=args.retry_failed,
-                                 skip_validation=args.skip_validation) 
+        translate_novel_chapters(
+            args.novel_base_directory, 
+            retry_failed_only=args.retry_failed,
+            skip_validation=args.skip_validation
+        ) 
