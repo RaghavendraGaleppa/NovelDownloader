@@ -25,7 +25,7 @@ except ImportError:
 def validate_api_keys() -> tuple[bool, str | None]:
     """
     Validates that the secrets.json file exists and contains at least one valid key.
-    
+        
     Returns:
         tuple: (is_valid: bool, error_message: str or None)
     """
@@ -37,7 +37,7 @@ def validate_api_keys() -> tuple[bool, str | None]:
         
     if not LOADED_API_KEYS:
         return False, "No valid API keys found in secrets.json. Please check the file format."
-        
+    
     return True, None
 
 def test_api_connectivity(test_all: bool = False) -> tuple[bool, str]:
@@ -55,7 +55,7 @@ def test_api_connectivity(test_all: bool = False) -> tuple[bool, str]:
     
     if not keys_to_test:
         return False, "No keys available to test."
-
+    
     console.print(f"🔍 Testing API connectivity for {len(keys_to_test)} key(s)...", style="blue")
     
     overall_success = True
@@ -78,8 +78,8 @@ def test_api_connectivity(test_all: bool = False) -> tuple[bool, str]:
                 overall_success = False
             else:
                 console.print(" [bold green]SUCCESS[/bold green]")
-
-        except Exception as e:
+        
+    except Exception as e:
             console.print(" [bold red]FAILED[/bold red]")
             final_message += f"\n  - {key_name}: Exception - {e}"
             overall_success = False
@@ -92,7 +92,7 @@ def test_api_connectivity(test_all: bool = False) -> tuple[bool, str]:
 def perform_api_validation(test_all_keys: bool = False) -> bool:
     """
     Performs complete API validation including key file check and connectivity.
-    
+        
     Returns:
         bool: True if validation passes, False otherwise
     """
@@ -653,12 +653,12 @@ def translate_novel_chapters(novel_base_directory: str, retry_failed_only: bool 
         
         while True:
             # Get current list of all raw files
-            try:
-                all_raw_files = [f for f in os.listdir(raws_dir) if f.startswith("Chapter_") and f.endswith(".md")]
-                all_raw_files.sort(key=extract_chapter_number)
-            except FileNotFoundError:
-                console.print(f"❌ Error: Raws directory not found at {raws_dir} when trying to list files.", style="red")
-                return
+        try:
+            all_raw_files = [f for f in os.listdir(raws_dir) if f.startswith("Chapter_") and f.endswith(".md")]
+            all_raw_files.sort(key=extract_chapter_number)
+        except FileNotFoundError:
+            console.print(f"❌ Error: Raws directory not found at {raws_dir} when trying to list files.", style="red")
+            return
             
             if not all_raw_files:
                 if iteration == 1:
@@ -743,6 +743,6 @@ if __name__ == "__main__":
     else:
         translate_novel_chapters(
             args.novel_base_directory, 
-            retry_failed_only=args.retry_failed,
+                                 retry_failed_only=args.retry_failed,
             skip_validation=args.skip_validation
         ) 

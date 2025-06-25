@@ -3,13 +3,18 @@ from bs4 import BeautifulSoup
 import re
 import cloudscraper
 import os
+import sys
 import time
 import json
 import random
 import argparse
 import urllib3
-from src.scraping.extraction_backends import ExtractionBackend, EB69Shu, EB1QXS
-from urllib.parse import urlparse
+
+# Ensure the package root is in the system path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
+
+import src.scraping.generic_parser as generic_parser
+from urllib.parse import urlparse, urljoin
 from typing import Optional
 
 # Disable SSL warnings
@@ -98,130 +103,12 @@ class NovelScraper:
             print(f"An unexpected error occurred while fetching URL {url}: {e}")
             return None
 
-# --- Backend Detection ---
-
-def detect_extraction_backend(url: str) -> ExtractionBackend:
-    """
-    Detect the appropriate extraction backend based on the URL.
-    
-    Args:
-        url (str): The URL to analyze
-        
-    Returns:
-        ExtractionBackend: The appropriate backend instance
-    """
-    parsed_url = urlparse(url)
-    domain = parsed_url.netloc.lower()
-    
-    # Check for 1qxs domains
-    if '1qxs' in domain:
-        return EB1QXS()
-    
-    # Check for 69shu domains
-    if '69shu' in domain or 'shu69' in domain or '69shuba' in domain:
-        return EB69Shu()
-    
-    # Default to 69shu backend for now
-    # In the future, add more conditions for other websites
-    return EB69Shu()
-
-# --- Helper Functions (Updated to use backends) ---
-
-def scrape_chapter(url):
-    """
-    Scrape a chapter from the given URL using the NovelScraper class.
-    
-    Args:
-        url (str): The URL of the chapter to scrape
-        
-    Returns:
-        str or None: The HTML content if successful, None if failed
-    """
-    scraper = NovelScraper()
-    return scraper.fetch_url(url)
-
-def get_next_chapter_url(html_content: str, url: Optional[str] = None) -> Optional[str]:
-    """
-    Extracts the URL for the next chapter from the given HTML content.
-
-    Args:
-        html_content (str): The HTML content of the novel chapter page.
-        url (str, optional): The original URL for backend detection and relative URL resolution.
-
-    Returns:
-        str or None: The URL of the next chapter, or None if not found.
-    """
-    # Use default backend if no URL provided for detection
-    backend = detect_extraction_backend(url) if url else EB69Shu()
-    return backend.get_next_chapter_url(html_content, url)
-
-def scrape_novel_content(source: str, source_type: str = 'file') -> tuple[str, list[str], str | None, str | None]:
-    """
-    Scrapes the title, Chinese novel text paragraphs, next chapter URL, and chapter number from an HTML source.
-
-    Args:
-        source (str): The path to an HTML file or a URL.
-        source_type (str): 'file' if source is a file path, 'url' if source is a URL.
-                          Defaults to 'file'.
-
-    Returns:
-        tuple: A tuple containing (title, paragraphs_list, next_chapter_url, chapter_number).
-               Returns ("No Title Found", [], None, None) if scraping fails or no content is found.
-    """
-    html_doc = None
-    if source_type == 'file':
-        try:
-            with open(source, 'r', encoding='utf-8') as file:
-                html_doc = file.read()
-        except FileNotFoundError:
-            print(f"Error: File not found at {source}")
-            return "Error: File Not Found", [], None, None
-        except Exception as e:
-            print(f"Error reading file {source}: {e}")
-            return f"Error Reading File: {e}", [], None, None
-    elif source_type == 'url':
-        try:
-            html_doc = scrape_chapter(source)
-        except requests.exceptions.RequestException as e:
-            print(f"Error fetching URL {source}: {e}")
-            return f"Error Fetching URL: {e}", [], None, None
-    else:
-        print("Invalid source_type. Must be 'file' or 'url'.")
-        return "Invalid Source Type", [], None, None
-
-    if not html_doc:
-        return "No Content Found", [], None, None
-
-    # Detect the appropriate backend based on the source URL
-    backend = detect_extraction_backend(source) if source_type == 'url' else EB69Shu()
-    
-    # Extract all content using the backend, passing current URL for relative URL resolution
-    current_url = source if source_type == 'url' else None
-    title, paragraphs, next_chapter_url, chapter_number = backend.extract_all_content(html_doc, current_url)
-
-    return title, paragraphs, next_chapter_url, chapter_number
-
-def get_chapter_number(html_content: str, url: Optional[str] = None) -> Optional[str]:
-    """
-    Extracts the chapter number from the given HTML content.
-
-    Args:
-        html_content (str): The HTML content of the novel chapter page.
-        url (str, optional): The original URL for backend detection and URL-based extraction fallback.
-
-    Returns:
-        str or None: The chapter number as a string, or None if not found.
-    """
-    # Use default backend if no URL provided for detection
-    backend = detect_extraction_backend(url) if url else EB69Shu()
-    return backend.get_chapter_number(html_content, url)
+# --- Helper Functions ---
 
 def _ensure_output_directory(dir_path: str) -> bool:
     """Ensures the output directory exists, creating it if necessary."""
     if not os.path.exists(dir_path):
         try:
-            # Create parent directories if they don't exist
-            os.makedirs(os.path.dirname(dir_path), exist_ok=True) 
             os.makedirs(dir_path, exist_ok=True)
             print(f"Created directory: {dir_path}")
         except OSError as e:
@@ -246,232 +133,167 @@ def _save_current_progress(
     novel_title: str, 
     original_start_url: str, 
     output_base_dir_name: str, 
-    processed_url: str | None, # URL of the chapter just processed (or None if initial save)
+    processed_url: str | None,
     next_url_to_process: str | None
 ):
-    """Saves the current scraping progress (including identity) to the progress file."""
-    progress_data_to_save = {
+    """Saves the current scraping progress to a JSON file."""
+    progress = {
         'novel_title': novel_title,
         'original_start_url': original_start_url,
         'output_base_dir_name': output_base_dir_name,
-        'last_scraped_url': processed_url, # Can be None initially
-        'next_url_to_scrape': next_url_to_process
+        'last_processed_url': processed_url,
+        'next_url_to_scrape': next_url_to_process,
+        'last_save_time': time.strftime("%Y-%m-%d %H:%M:%S")
     }
-    try:
-        # Ensure parent directory for progress file exists
-        os.makedirs(os.path.dirname(progress_file_path), exist_ok=True)
-        with open(progress_file_path, 'w', encoding='utf-8') as pf:
-            json.dump(progress_data_to_save, pf, indent=4)
-    except IOError as e:
-        print(f"Error saving progress to {progress_file_path}: {e}")
+    with open(progress_file_path, 'w', encoding='utf-8') as f:
+        json.dump(progress, f, indent=4)
 
-def _create_chapter_file(output_dir_path: str, chapter_num_str: str, title: str, paragraphs: list[str]) -> bool:
-    """Creates or appends to a markdown file for the given chapter content in the specified output directory."""
-    filename = f"Chapter_{chapter_num_str}.md"
-    filepath = os.path.join(output_dir_path, filename)
-    
-    try:
-        # Check if file already exists
-        file_exists = os.path.exists(filepath)
+def _create_chapter_file(output_dir_path: str, chapter_num_str: str, title: str, content: str) -> bool:
+    """Creates a new chapter file, ensuring no overwrite."""
+    if not chapter_num_str:
+        print("Warning: Chapter number not found. Skipping file creation.")
+        return False
         
-        # Use append mode if file exists, write mode if new
-        mode = 'a' if file_exists else 'w'
-        
-        with open(filepath, mode, encoding='utf-8') as f:
-            if not file_exists:
-                # New file - write header and title
-                f.write(f"# {title}\n\n")
-            else:
-                # Existing file - add separator and content
-                f.write(f"\n\n---\n\n**{title}**\n\n")
-            
-            if paragraphs:
-                f.write("\n\n".join(paragraphs))
-            f.write("\n")
-        return True
-    except IOError as e:
-        print(f"Error writing file {filepath}: {e}")
+    safe_title = re.sub(r'[\\/*?:"<>|]', "", title)
+    file_name = f"chapter_{chapter_num_str.zfill(4)}_{safe_title}.html"
+    file_path = os.path.join(output_dir_path, file_name)
+
+    if os.path.exists(file_path):
+        print(f"File already exists: {file_path}. Skipping.")
         return False
 
-# --- Main Function ---
+    try:
+        with open(file_path, 'w', encoding='utf-8') as file:
+            file.write('<!DOCTYPE html>\n<html lang="zh-CN">\n<head>\n')
+            file.write(f'  <meta charset="UTF-8">\n  <title>{title}</title>\n')
+            file.write('</head>\n<body>\n')
+            file.write(f'  <h1>{title}</h1>\n')
+            file.write(content)
+            file.write('\n</body>\n</html>')
+        print(f"Successfully saved chapter: {file_name}")
+        return True
+    except IOError as e:
+        print(f"Error writing to file {file_path}: {e}")
+        return False
 
 def main(args: argparse.Namespace):
-    novel_title: str
-    original_start_url: str
-    current_url: str | None
-    safe_novel_title_dir_name: str # This is the output_base_dir_name
-    progress_file_path: str
-    output_dir_path: str # For Raws subfolder
-
-    if args.progress_file:  # Resume with explicit progress file
-        progress_file_path = args.progress_file
-        if not os.path.exists(progress_file_path):
-            print(f"Error: Progress file not found: {progress_file_path}")
-            return
-
-        try:
-            with open(progress_file_path, 'r', encoding='utf-8') as pf:
-                data = json.load(pf)
-            novel_title = data['novel_title']
-            original_start_url = data['original_start_url']
-            safe_novel_title_dir_name = data['output_base_dir_name']
-            current_url = data.get('next_url_to_scrape')
-            print(f"Resuming scrape for '{novel_title}' from progress file: {progress_file_path}")
-            if current_url is None:
-                print("Progress file indicates task was already completed.")
-                _attempt_cleanup_completed_progress_file(progress_file_path)
-                return
-        except (KeyError, json.JSONDecodeError, IOError) as e:
-            print(f"Error reading or parsing progress file {progress_file_path}: {e}")
-            return
+    """Main function to run the novel scraper."""
     
-    elif args.new_scrape:  # New scrape (or implicit resume)
-        start_url_param = args.new_scrape[0]
-        novel_title_param = args.new_scrape[1]
-        
-        novel_title = novel_title_param
-        original_start_url = start_url_param # Tentative, might be overwritten if implicitly resuming
-        safe_novel_title_dir_name = novel_title.replace(' ', '_').replace('/', '_').replace('\\', '_')
-        
-        # Use custom output path if provided, otherwise use Novels/novel_title directory structure
-        if args.output_path:
-            base_output_dir = args.output_path
-            progress_file_path = os.path.join(base_output_dir, f"{safe_novel_title_dir_name}_progress.json")
-        else:
-            base_output_dir = os.path.join("Novels", safe_novel_title_dir_name)
-            progress_file_path = os.path.join(base_output_dir, f"{safe_novel_title_dir_name}_progress.json")
+    # Use the custom output path if provided, otherwise default to "Novels"
+    novels_base_dir = args.output_path if args.output_path else "Novels"
 
-        if os.path.exists(progress_file_path):
-            print(f"Found existing progress file based on novel title: {progress_file_path}. Attempting implicit resume.")
-            try:
-                with open(progress_file_path, 'r', encoding='utf-8') as pf:
-                    data = json.load(pf)
-                # Use data from file for consistency if implicitly resuming
-                novel_title = data.get('novel_title', novel_title) # Prefer file if available
-                original_start_url = data.get('original_start_url', original_start_url) # Prefer file
-                safe_novel_title_dir_name = data.get('output_base_dir_name', safe_novel_title_dir_name) # Prefer file
-                current_url = data.get('next_url_to_scrape')
-                
-                if current_url is None:
-                    print("Existing progress file indicates task was already completed.")
-                    _attempt_cleanup_completed_progress_file(progress_file_path)
-                    return
-                print(f"Implicitly resuming for '{novel_title}'. Next URL: {current_url}")
-            except (KeyError, json.JSONDecodeError, IOError) as e:
-                print(f"Error reading existing progress file {progress_file_path}: {e}. Starting as new scrape from {original_start_url}.")
-                current_url = original_start_url
-                # Save initial full progress for this truly new attempt
-                _save_current_progress(progress_file_path, novel_title, original_start_url, base_output_dir, None, current_url)
-        else:
-            print(f"Starting new scrape for '{novel_title}' from URL: {original_start_url}")
-            current_url = original_start_url
-            # Save initial progress state for a brand new scrape
-            _save_current_progress(progress_file_path, novel_title, original_start_url, base_output_dir, None, current_url)
-    else:
-        # Should not happen due to mutually exclusive group in argparse
-        print("Error: Invalid arguments. Please specify a progress file or new scrape details.")
-        return
-
-    # Set final output directory - use custom path if provided, otherwise use Novels/novel_title with novel-specific Raws subfolder
-    if args.output_path:
-        output_dir_path = os.path.join(args.output_path, f"{safe_novel_title_dir_name}-Raws")
-    else:
-        output_dir_path = os.path.join("Novels", safe_novel_title_dir_name, f"{safe_novel_title_dir_name}-Raws")
-
-    if not _ensure_output_directory(output_dir_path):
-        return
-
-    chapters_saved_this_session = 0
+    start_url = args.url
+    output_dir_name = args.output_dir
     max_chapters = args.max_chapters
+    start_chapter = args.start_chapter
 
-    # Detect and print which extraction backend will be used
-    if current_url:
-        backend = detect_extraction_backend(current_url)
-        backend_name = backend.__class__.__name__
-        print(f"Using extraction backend: {backend_name}")
+    # Load all scraper configurations
+    try:
+        all_configs = generic_parser.load_configs_from_directory('scraper_configs/')
+        if not all_configs:
+            print("Error: No scraper configurations found in 'scraper_configs/'. Exiting.")
+            return
+    except FileNotFoundError as e:
+        print(f"Error: {e}. Exiting.")
+        return
 
-    print(f"--- Starting scrape for '{novel_title}' --- URL: {current_url}")
-    print(f"Output directory: {output_dir_path}")
-    print(f"Progress file: {progress_file_path}")
-    print(f"Maximum chapters to scrape in this session: {max_chapters}")
+    scraper = NovelScraper()
+    current_url = start_url
+    chapters_scraped = 0
+    novel_title = "Unknown Novel" # Default title
+    output_dir_path = ""
+    current_chapter_num = 0 # To track chapter numbers for skipping
 
-    for i in range(max_chapters):
-        if not current_url:
-            print("No more chapters to scrape (current URL is None).")
-            _attempt_cleanup_completed_progress_file(progress_file_path)
+    # Define progress file path based on start URL
+    safe_url_name = re.sub(r'[\\/*?:"<>|]', "_", start_url)
+    progress_file_path = f"{safe_url_name}_progress.json"
+
+    # Resume from progress file if it exists and progress is enabled
+    if not args.no_progress and os.path.exists(progress_file_path):
+        _attempt_cleanup_completed_progress_file(progress_file_path)
+        if os.path.exists(progress_file_path): # Check again after cleanup attempt
+            with open(progress_file_path, 'r', encoding='utf-8') as pf:
+                progress = json.load(pf)
+                print(f"Resuming from saved progress: {progress['last_processed_url']}")
+                current_url = progress['next_url_to_scrape']
+                novel_title = progress['novel_title']
+                output_dir_name = progress['output_base_dir_name']
+    
+    if not current_url:
+        print("Scraping has already been completed for this URL. Exiting.")
+        return
+
+    while current_url and (max_chapters is None or chapters_scraped < max_chapters):
+        # Get the config for the current URL
+        site_config = generic_parser.get_config_for_url(current_url, all_configs)
+        if not site_config:
+            print(f"Error: Unsupported website '{urlparse(current_url).netloc}'. No configuration found.")
+            print("Please create a configuration file in 'scraper_configs/' to support this site.")
             break
-
-        print(f"Scraping chapter from: {current_url}")
-        title, paragraphs, next_url_from_scraper, chapter_num_str = scrape_novel_content(current_url, source_type='url')
-
-        if title is None or title.startswith("Error:") or title == "No Content Found" or title == "Invalid Source Type":
-            print(f"Error scraping {current_url}: {title}. Stopping session.")
-            # Progress not saved for this failed attempt, will retry current_url next time
-            break
-
-        if not chapter_num_str:
-            print(f"Warning: Could not determine chapter number for URL {current_url} (Title: \"{title}\"). Skipping save.")
-            _save_current_progress(progress_file_path, novel_title, original_start_url, safe_novel_title_dir_name, current_url, next_url_from_scraper)
-            print(f"Progress updated to skip {current_url}.")
-        else:
-            # Check if file exists before creation to determine action
-            filepath = os.path.join(output_dir_path, f"Chapter_{chapter_num_str}.md")
-            file_existed = os.path.exists(filepath)
             
-            if _create_chapter_file(output_dir_path, chapter_num_str, title, paragraphs):
-                chapters_saved_this_session += 1
-                print("-" * 70) 
-                
-                # Show appropriate message based on whether file existed
-                file_action = "Appended to existing" if file_existed else "Successfully saved new"
-                print(f"{file_action}: {filepath} (Session total: {chapters_saved_this_session})")
-                
-                _save_current_progress(progress_file_path, novel_title, original_start_url, safe_novel_title_dir_name, current_url, next_url_from_scraper)
+        print(f"\nScraping chapter from: {current_url}")
+        html_content = scraper.fetch_url(current_url)
 
-                if not next_url_from_scraper:
-                    print("Successfully processed the last available chapter for this novel.")
-                    _attempt_cleanup_completed_progress_file(progress_file_path)
-            else:
-                print(f"Failed to save {os.path.join(output_dir_path, f'Chapter_{chapter_num_str}.md')}. Stopping session to allow retry.")
-                break
+        if not html_content:
+            print(f"Failed to retrieve content for chapter at {current_url}. Stopping.")
+            _save_current_progress(progress_file_path, novel_title, start_url, output_dir_name, current_url, current_url)
+            break
         
-        last_processed_url = current_url # For progress saving on skip
-        current_url = next_url_from_scraper 
+        # Parse the HTML using the generic parser
+        parsed_data = generic_parser.parse_html(html_content, site_config, current_url)
+        
+        title = parsed_data.get("chapter_title")
+        content = parsed_data.get("content")
+        next_chapter_url = parsed_data.get("next_chapter_url")
+        chapter_number = parsed_data.get("chapter_number")
+
+        if not title or not content:
+            print(f"Could not extract title or content from {current_url}. Stopping.")
+            _save_current_progress(progress_file_path, novel_title, start_url, output_dir_name, current_url, current_url)
+            break
+
+        if chapters_scraped == 0:
+            novel_title = args.title or title.split(' ')[0]
+            if output_dir_name:
+                output_dir_path = os.path.join(novels_base_dir, output_dir_name)
+            else:
+                output_dir_path = os.path.join(novels_base_dir, novel_title)
+            _ensure_output_directory(output_dir_path)
+
+        current_chapter_num = chapter_number or (current_chapter_num + 1)
+
+        if start_chapter and current_chapter_num < start_chapter:
+            print(f"Skipping Chapter {current_chapter_num} (Starting at {start_chapter})")
+            current_url = next_chapter_url
+            continue
+
+        if _create_chapter_file(output_dir_path, str(current_chapter_num), title, content):
+            chapters_scraped += 1
+        
+        last_processed_url = current_url
+        current_url = next_chapter_url
+        
+        if not args.no_progress:
+            _save_current_progress(progress_file_path, novel_title, start_url, os.path.basename(output_dir_path), last_processed_url, current_url)
 
         if current_url:
-            sleep_duration = random.uniform(1, 3)
-            print(f"Sleeping for {sleep_duration:.2f} seconds before next chapter...")
-            time.sleep(sleep_duration)
-    
-    else: 
-        if i == max_chapters - 1 and current_url:
-            print(f"Reached maximum scrape limit of {max_chapters} chapters for '{novel_title}'.")
-            print(f"More chapters might be available. Progress for resuming from {current_url} is saved in {progress_file_path}.")
+            time.sleep(random.uniform(1, 4)) # Respectful delay
+        else:
+            print("\nNo next chapter URL found. Scraping finished.")
+            _attempt_cleanup_completed_progress_file(progress_file_path)
 
-    print(f"\nScraping session finished for '{novel_title}'. Total chapters saved in this session: {chapters_saved_this_session}")
+    print(f"\nScraping complete. Total chapters scraped: {chapters_scraped}")
 
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Scrape novel chapters. Provide either a progress file to resume or details for a new scrape.",
-        formatter_class=argparse.RawTextHelpFormatter # For better help text formatting
-    )
-    group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument("-p", "--progress-file", 
-                       help="Path to an existing progress JSON file to resume scraping.")
-    group.add_argument("-n", "--new-scrape", 
-                       nargs=2, 
-                       metavar=('START_URL', 'NOVEL_TITLE'),
-                       help="Start a new scrape. Requires START_URL and NOVEL_TITLE.\nExample: -n \"https://example.com/chapter1\" \"My Novel Title\"")
-
-    parser.add_argument("-m", "--max-chapters", 
-                        type=int, 
-                        default=1000, 
-                        help="Maximum number of chapters to scrape in this session (default: 1000).")
-    
-    parser.add_argument("-o", "--output-path", 
-                        type=str, 
-                        help="Custom output directory path. If not specified, uses novel title as directory name.")
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Scrape a novel from a website.')
+    parser.add_argument('url', help='The starting URL of the novel to scrape.')
+    parser.add_argument('--max-chapters', '-m', type=int, help='The maximum number of chapters to scrape.')
+    parser.add_argument('--output-dir', '-o', help='Specify the output directory name. Defaults to novel title.')
+    parser.add_argument('--start-chapter', '-s', type=int, help='The chapter number to start scraping from.')
+    parser.add_argument('--title', '-t', help='Set a custom title for the novel folder.')
+    parser.add_argument('--output-path', help='Specify a custom base output path. Overrides the default "Novels" directory.')
+    parser.add_argument('--no-progress', action='store_true', help='Disable loading from or saving to progress files.')
     
     args = parser.parse_args()
-    main(args) # Pass the parsed args object to main
+    main(args)

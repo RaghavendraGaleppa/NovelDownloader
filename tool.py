@@ -396,7 +396,7 @@ def main():
     # Extract URL and title for scrape command
     if args.command == 'scrape':
         if hasattr(args, 'url_title') and args.url_title:
-            args.url, args.title = args.url_title
+        args.url, args.title = args.url_title
     
     # Call the appropriate function
     try:

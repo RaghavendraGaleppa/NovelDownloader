@@ -1,0 +1,18 @@
+{
+  "next_chapter_url": {
+    "selector": "#next",
+    "attribute": "href"
+  },
+  "chapter_title": {
+    "selector": ".title h1"
+  },
+  "content_container": {
+    "selector": "div.content",
+    "content_element": "p",
+    "cleanup_text_contains": ["本章未完，点击"]
+  },
+  "chapter_number": {
+    "selector": ".title h1",
+    "regex": "^(\\d+)："
+  }
+} 

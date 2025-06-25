@@ -1,0 +1,18 @@
+{
+  "next_chapter_url": {
+    "selector": "div.page1 a",
+    "text_contains": "下一章",
+    "attribute": "href"
+  },
+  "chapter_title": {
+    "selector": "div.txtnav h1"
+  },
+  "content_container": {
+    "selector": "div.txtnav",
+    "cleanup_selectors": ["#txtright", ".bottom-ad", ".contentadv", ".txtinfo", ".page1"]
+  },
+  "chapter_number": {
+    "selector": "div.txtnav h1",
+    "regex": "第(\\d+)章"
+  }
+} 
