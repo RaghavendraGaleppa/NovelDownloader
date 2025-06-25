@@ -31,6 +31,9 @@ def cmd_scrape(args):
     scrape_args = argparse.Namespace()
     scrape_args.max_chapters = args.max_chapters
     scrape_args.output_path = args.output_path
+    scrape_args.output_dir = None
+    scrape_args.start_chapter = None
+    scrape_args.no_progress = False  # Enable progress by default
     
     if args.resume:
         # Resume mode - find progress file in the specified folder
@@ -57,15 +60,26 @@ def cmd_scrape(args):
         progress_file_path = os.path.join(folder_path, progress_files[0])
         print(f"📁 Found progress file: {progress_file_path}")
         
-        # Set up args for resume mode
-        scrape_args.progress_file = progress_file_path
-        scrape_args.new_scrape = None
+        # For resume mode, we need to extract the URL from the progress file
+        try:
+            with open(progress_file_path, 'r', encoding='utf-8') as pf:
+                progress_data = json.load(pf)
+            
+            # Get the next URL to scrape from the progress file
+            scrape_args.url = progress_data.get('next_url_to_scrape')
+            scrape_args.title = progress_data.get('novel_title', 'Unknown Novel')
+            
+            if not scrape_args.url:
+                print("❌ Error: Progress file indicates scraping is already complete.")
+                return
+                
+        except (json.JSONDecodeError, IOError) as e:
+            print(f"❌ Error reading progress file: {e}")
+            return
         
     else:
-        # New scrape mode
-        args.url, args.title = args.url_title
-        scrape_args.new_scrape = [args.url, args.title]
-        scrape_args.progress_file = None
+        # New scrape mode - extract URL and title from url_title
+        scrape_args.url, scrape_args.title = args.url_title
     
     # Call the main scraping function
     scrape_main(scrape_args)
@@ -396,7 +410,7 @@ def main():
     # Extract URL and title for scrape command
     if args.command == 'scrape':
         if hasattr(args, 'url_title') and args.url_title:
-        args.url, args.title = args.url_title
+            args.url, args.title = args.url_title
     
     # Call the appropriate function
     try:

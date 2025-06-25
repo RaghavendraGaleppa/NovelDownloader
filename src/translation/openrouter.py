@@ -78,47 +78,47 @@ def translate_chinese_to_english(text_to_translate: str, key_override: dict | No
             continue
 
         provider_config = copy.deepcopy(api_providers[provider_name])
-    api_url = provider_config["url"]
-    available_models = provider_config["model_names"]
+        api_url = provider_config["url"]
+        available_models = provider_config["model_names"]
 
         CONSOLE.print(f"🔄 Attempting translation with: [bold cyan]{key_name}[/bold cyan] (Key #{i + 1})", style="dim")
 
         headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
 
-    for model_name in available_models:
-        messages = [
-            {"role": "system", "content": "You are a professional Chinese to English translator specializing in Xianxia novel style. Translate the following Chinese text, which is from a Xianxia novel, accurately and naturally into English, maintaining the specific tone, terminology, and cultural nuances characteristic of the genre."},
-            {"role": "user", "content": f"Translate this Chinese text, which is from a Xianxia novel, into English: '{text_to_translate}'"}
-        ]
-        payload = {
+        for model_name in available_models:
+            messages = [
+                {"role": "system", "content": "You are a professional Chinese to English translator specializing in Xianxia novel style. Translate the following Chinese text, which is from a Xianxia novel, accurately and naturally into English, maintaining the specific tone, terminology, and cultural nuances characteristic of the genre."},
+                {"role": "user", "content": f"Translate this Chinese text, which is from a Xianxia novel, into English: '{text_to_translate}'"}
+            ]
+            payload = {
                 "model": model_name, "messages": messages, "temperature": 0.3, "max_tokens": 50000
-        }
+            }
 
-        try:
+            try:
                 response = requests.post(api_url, headers=headers, json=payload, timeout=None)
                 response.raise_for_status()
-            response_data = response.json()
+                response_data = response.json()
 
-            if response_data and response_data.get("choices"):
-                translated_text = response_data["choices"][0]["message"]["content"].strip()
+                if response_data and response_data.get("choices"):
+                    translated_text = response_data["choices"][0]["message"]["content"].strip()
                     CONSOLE.print(f"✅ Success with [bold cyan]{key_name}[/bold cyan] using model [green]{model_name}[/green].", style="dim")
-                return translated_text
-            else:
+                    return translated_text
+                else:
                     CONSOLE.print(f"⚠️  Warning: No translation found in API response for model {model_name}. Response: {response_data}", style="yellow")
-                continue
+                    continue
 
-        except requests.exceptions.HTTPError as http_err:
-            if http_err.response is not None and http_err.response.status_code == 429:
+            except requests.exceptions.HTTPError as http_err:
+                if http_err.response is not None and http_err.response.status_code == 429:
                     CONSOLE.print(f"Rate limit for model {model_name}. Trying next model...", style="yellow")
                     continue
-            else:
+                else:
                     error_body = http_err.response.text if http_err.response else "No response body"
                     CONSOLE.print(f"❌ HTTP Error with {provider_name}/{model_name}: {http_err} - {error_body}", style="red")
                     break  # Break from model loop, move to next key
-        except requests.exceptions.RequestException as req_err:
+            except requests.exceptions.RequestException as req_err:
                 CONSOLE.print(f"❌ Request Error with {provider_name}/{model_name}: {req_err}", style="red")
                 break # Break from model loop, move to next key
-        except Exception as e:
+            except Exception as e:
                 CONSOLE.print(f"❌ Unforeseen Error with {provider_name}/{model_name}: {e}", style="red")
                 break # Break from model loop, move to next key
 

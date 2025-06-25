@@ -79,10 +79,10 @@ def test_api_connectivity(test_all: bool = False) -> tuple[bool, str]:
             else:
                 console.print(" [bold green]SUCCESS[/bold green]")
         
-    except Exception as e:
-            console.print(" [bold red]FAILED[/bold red]")
-            final_message += f"\n  - {key_name}: Exception - {e}"
-            overall_success = False
+        except Exception as e:
+                console.print(" [bold red]FAILED[/bold red]")
+                final_message += f"\n  - {key_name}: Exception - {e}"
+                overall_success = False
 
     if overall_success:
         return True, "All tested keys connected successfully."
@@ -653,12 +653,8 @@ def translate_novel_chapters(novel_base_directory: str, retry_failed_only: bool 
         
         while True:
             # Get current list of all raw files
-        try:
             all_raw_files = [f for f in os.listdir(raws_dir) if f.startswith("Chapter_") and f.endswith(".md")]
             all_raw_files.sort(key=extract_chapter_number)
-        except FileNotFoundError:
-            console.print(f"❌ Error: Raws directory not found at {raws_dir} when trying to list files.", style="red")
-            return
             
             if not all_raw_files:
                 if iteration == 1:

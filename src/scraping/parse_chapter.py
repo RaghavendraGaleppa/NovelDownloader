@@ -202,23 +202,34 @@ def main(args: argparse.Namespace):
     chapters_scraped = 0
     novel_title = "Unknown Novel" # Default title
     output_dir_path = ""
+    progress_file_path = ""
+    novel_base_dir_path = ""
     current_chapter_num = 0 # To track chapter numbers for skipping
 
-    # Define progress file path based on start URL
-    safe_url_name = re.sub(r'[\\/*?:"<>|]', "_", start_url)
-    progress_file_path = f"{safe_url_name}_progress.json"
+    # The progress file path is now determined AFTER the novel title is known
+    # so it can be placed inside the novel's main directory.
 
-    # Resume from progress file if it exists and progress is enabled
-    if not args.no_progress and os.path.exists(progress_file_path):
-        _attempt_cleanup_completed_progress_file(progress_file_path)
-        if os.path.exists(progress_file_path): # Check again after cleanup attempt
-            with open(progress_file_path, 'r', encoding='utf-8') as pf:
-                progress = json.load(pf)
-                print(f"Resuming from saved progress: {progress['last_processed_url']}")
-                current_url = progress['next_url_to_scrape']
-                novel_title = progress['novel_title']
-                output_dir_name = progress['output_base_dir_name']
-    
+    # Try to determine novel title early for resuming, if possible
+    temp_title_for_resume = "Unknown"
+    if args.title:
+        temp_title_for_resume = args.title
+    elif args.output_dir:
+        temp_title_for_resume = args.output_dir
+
+    if temp_title_for_resume != "Unknown":
+        temp_novel_base_path = os.path.join(novels_base_dir, temp_title_for_resume)
+        temp_progress_file = os.path.join(temp_novel_base_path, f"{temp_title_for_resume}_progress.json")
+        if not args.no_progress and os.path.exists(temp_progress_file):
+            progress_file_path = temp_progress_file # Set the real progress file path
+            _attempt_cleanup_completed_progress_file(progress_file_path)
+            if os.path.exists(progress_file_path):
+                with open(progress_file_path, 'r', encoding='utf-8') as pf:
+                    progress = json.load(pf)
+                    print(f"Resuming from saved progress: {progress['last_processed_url']}")
+                    current_url = progress['next_url_to_scrape']
+                    novel_title = progress['novel_title']
+                    output_dir_name = progress['output_base_dir_name']
+
     if not current_url:
         print("Scraping has already been completed for this URL. Exiting.")
         return
@@ -236,7 +247,8 @@ def main(args: argparse.Namespace):
 
         if not html_content:
             print(f"Failed to retrieve content for chapter at {current_url}. Stopping.")
-            _save_current_progress(progress_file_path, novel_title, start_url, output_dir_name, current_url, current_url)
+            if progress_file_path and not args.no_progress:
+                _save_current_progress(progress_file_path, novel_title, start_url, output_dir_name, current_url, current_url)
             break
         
         # Parse the HTML using the generic parser
@@ -249,17 +261,27 @@ def main(args: argparse.Namespace):
 
         if not title or not content:
             print(f"Could not extract title or content from {current_url}. Stopping.")
-            _save_current_progress(progress_file_path, novel_title, start_url, output_dir_name, current_url, current_url)
+            if progress_file_path and not args.no_progress:
+                _save_current_progress(progress_file_path, novel_title, start_url, output_dir_name, current_url, current_url)
             break
 
         if chapters_scraped == 0:
+            # First chapter, set up all paths
             novel_title = args.title or title.split(' ')[0]
-            if output_dir_name:
-                output_dir_path = os.path.join(novels_base_dir, output_dir_name)
-            else:
-                output_dir_path = os.path.join(novels_base_dir, novel_title)
+            
+            # Define the main directory for the novel
+            safe_novel_title = re.sub(r'[\\/*?:"<>|]', "", novel_title)
+            novel_base_dir_path = os.path.join(novels_base_dir, safe_novel_title)
+            
+            # Define the directory for the raw chapter files
+            output_dir_name = f"{safe_novel_title}-Raws"
+            output_dir_path = os.path.join(novel_base_dir_path, output_dir_name)
+            
+            # Define the progress file path inside the main novel directory
+            progress_file_path = os.path.join(novel_base_dir_path, f"{safe_novel_title}_progress.json")
+            
             _ensure_output_directory(output_dir_path)
-
+        
         current_chapter_num = chapter_number or (current_chapter_num + 1)
 
         if start_chapter and current_chapter_num < start_chapter:
@@ -273,14 +295,15 @@ def main(args: argparse.Namespace):
         last_processed_url = current_url
         current_url = next_chapter_url
         
-        if not args.no_progress:
-            _save_current_progress(progress_file_path, novel_title, start_url, os.path.basename(output_dir_path), last_processed_url, current_url)
+        if not args.no_progress and progress_file_path:
+            _save_current_progress(progress_file_path, novel_title, start_url, os.path.basename(novel_base_dir_path), last_processed_url, current_url)
 
         if current_url:
             time.sleep(random.uniform(1, 4)) # Respectful delay
         else:
             print("\nNo next chapter URL found. Scraping finished.")
-            _attempt_cleanup_completed_progress_file(progress_file_path)
+            if progress_file_path:
+                _attempt_cleanup_completed_progress_file(progress_file_path)
 
     print(f"\nScraping complete. Total chapters scraped: {chapters_scraped}")
 
