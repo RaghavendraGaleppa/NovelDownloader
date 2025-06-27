@@ -62,6 +62,150 @@ def finalize_translation_record(db: Database, progress_id: ObjectId, status: str
         db.translation_progress.delete_one({"_id": progress_id})
         console.print(f"Finalized translation for progress record {progress_id} with status {status}", style="green" if status == "completed" else "red")
 
+
+def _process_single_chapter_from_db(
+    raw_chapter: dict,
+    db: Database,
+    novel_name: str,
+):
+    """
+    Processes a single chapter from a raw chapter record from the database.
+    """
+    raw_chapter_id = raw_chapter["_id"]
+    novel_id = raw_chapter["novel_id"]
+    chapter_title = raw_chapter["title"]
+    chapter_content = raw_chapter["content"]
+    n_tries = 1  # Start with 1 try
+    provider = None
+
+    # Create the record in translated_chapters first to mark it as in-progress
+    initial_record = {
+        "novel_id": novel_id,
+        "raw_chapter_id": raw_chapter_id,
+        "title": "pending translation",
+        "pickup_epoch": time.time(),
+        "status": "in_progress",
+        "n_tries": n_tries
+    }
+    result = db.translated_chapters.insert_one(initial_record)
+    record_id = result.inserted_id
+
+    try:
+        # 1. Translate title
+        translated_title, _ = translate(chapter_title)
+        if translated_title.startswith("Error:"):
+            console.print(f"Failed to translate title for chapter {raw_chapter_id}: {translated_title}", style="red")
+            translated_title = chapter_title  # fallback to original title
+
+        # 2. Translate content
+        translated_content, provider = translate(chapter_content)
+        if translated_content.startswith("Error:"):
+            raise Exception(f"Translation failed: {translated_content}")
+
+        # 3. Save translated chapter
+        translation_dir = os.path.join("Novels", novel_name, "Translations")
+        _ensure_directory_exists(translation_dir)
+        safe_filename = "".join(x for x in translated_title if x.isalnum() or x in " ._").rstrip()
+        save_path = os.path.join(translation_dir, f"{safe_filename}.md")
+        with open(save_path, 'w', encoding='utf-8') as f:
+            f.write(f"# {translated_title}\\n\\n{translated_content}")
+
+        # 4. Finalize record on success
+        db.translated_chapters.update_one(
+            {"_id": record_id},
+            {"$set": {
+                "status": "completed",
+                "title": translated_title,
+                "saved_at": save_path,
+                "end_epoch": time.time(),
+                "provider": provider
+            }}
+        )
+        # Update the main progress document
+        db.translation_progress.update_one(
+            {"novel_id": novel_id},
+            {"$inc": {"completed_chapters": 1}, "$set": {"last_updated_epoch": time.time()}}
+        )
+        console.print(f"Successfully translated and saved chapter {raw_chapter_id}", style="green")
+
+    except Exception as e:
+        console.print(f"Error processing chapter {raw_chapter_id}: {e}", style="red")
+        # Finalize record on failure
+        db.translated_chapters.update_one(
+            {"_id": record_id},
+            {"$set": {"status": "failed", "end_epoch": time.time(), "provider": provider if provider else "N/A"}}
+        )
+        raise e  # Re-raise the exception to be caught by the main loop
+
+
+def translate_novel_by_id(novel_id: str, workers: int = 1):
+    """
+    Translates a novel using the new database-driven approach.
+    """
+    if not perform_api_validation():
+        return
+
+    console.print(f"Starting translation for novel {novel_id} with {workers} workers.", style="bold blue")
+    db = db_client
+    novel_object_id = ObjectId(novel_id)
+
+    novel = db.novels.find_one({"_id": novel_object_id})
+    if not novel:
+        console.print(f"Novel with id {novel_id} not found.", style="red")
+        return
+    novel_name = novel["title"]
+
+    # 1. Get all raw chapter IDs for this novel
+    all_raw_chapter_docs = list(db.raw_chapters.find({"novel_id": novel_object_id}, {"_id": 1}))
+    all_raw_chapter_ids = {str(doc["_id"]) for doc in all_raw_chapter_docs}
+
+    # 2. Get all raw_chapter_ids that have already been successfully translated
+    completed_chapters_cursor = db.translated_chapters.find(
+        {"novel_id": novel_object_id, "status": "completed"},
+        {"raw_chapter_id": 1, "_id": 0}
+    )
+    completed_raw_ids = {str(c["raw_chapter_id"]) for c in completed_chapters_cursor}
+
+    # 3. Determine which chapters to process
+    chapters_to_process_ids = list(all_raw_chapter_ids - completed_raw_ids)
+
+    console.print(f"Found {len(all_raw_chapter_ids)} total raw chapters.", style="blue")
+    console.print(f"Found {len(completed_raw_ids)} already completed chapters.", style="blue")
+    console.print(f"Found {len(chapters_to_process_ids)} chapters to translate.", style="bold blue")
+
+    if not chapters_to_process_ids:
+        console.print("All chapters already translated.", style="green")
+        return
+
+    # 4. Initialize/update the main progress document
+    db.translation_progress.update_one(
+        {"novel_id": novel_object_id},
+        {"$set": {
+            "novel_id": novel_object_id,
+            "total_chapters": len(all_raw_chapter_ids),
+            "completed_chapters": len(completed_raw_ids),
+            "last_updated_epoch": time.time()
+        }},
+        upsert=True
+    )
+
+    with ThreadPoolExecutor(max_workers=workers) as executor:
+        futures = []
+        for chapter_id in chapters_to_process_ids:
+            raw_chapter_doc = db.raw_chapters.find_one({"_id": ObjectId(chapter_id)})
+            if raw_chapter_doc:
+                console.print(f"Submitting chapter {chapter_id} for translation.", style="dim")
+                futures.append(executor.submit(_process_single_chapter_from_db, raw_chapter_doc, db, novel_name))
+
+        for future in as_completed(futures):
+            try:
+                future.result()
+            except Exception as e:
+                console.print(f"A worker failed while processing a chapter: {e}", style="red")
+
+    console.print(f"Translation finished for novel {novel_id}.", style="bold green")
+
+
 def validate_api_keys() -> tuple[bool, str | None]:
     """
     Validates that the secrets.json file exists and contains at least one valid key.
@@ -114,14 +258,14 @@ def test_api_connectivity(test_all: bool = False) -> tuple[bool, str]:
             
             if result.startswith("Error:"):
                 console.print(" [bold red]FAILED[/bold red]")
-                final_message += f"\n  - {key_name}: {result}"
+                final_message += f"\\n  - {key_name}: {result}"
                 overall_success = False
             else:
                 console.print(" [bold green]SUCCESS[/bold green]")
 
         except Exception as e:
             console.print(" [bold red]FAILED[/bold red]")
-            final_message += f"\n  - {key_name}: Exception - {e}"
+            final_message += f"\\n  - {key_name}: Exception - {e}"
             overall_success = False
 
     if overall_success:
@@ -136,13 +280,13 @@ def perform_api_validation(test_all_keys: bool = False) -> bool:
     Returns:
         bool: True if validation passes, False otherwise
     """
-    console.print(f"\n🔧 Validating API key configuration from secrets.json...", style="bold blue")
+    console.print(f"\\n🔧 Validating API key configuration from secrets.json...", style="bold blue")
     
     # Step 1: Validate key file and contents
     config_valid, config_error = validate_api_keys()
     if not config_valid:
         console.print(f"❌ API Configuration Error: {config_error}", style="red")
-        console.print("\n💡 To fix this:", style="yellow")
+        console.print("\\n💡 To fix this:", style="yellow")
         if config_error and "not found" in config_error:
             console.print("   1. Copy 'secrets.example.json' to 'secrets.json'", style="cyan")
             console.print("   2. Add your API keys to 'secrets.json'", style="cyan")
@@ -157,7 +301,7 @@ def perform_api_validation(test_all_keys: bool = False) -> bool:
     connectivity_valid, connectivity_message = test_api_connectivity(test_all=test_all_keys)
     if not connectivity_valid:
         console.print(f"❌ API Connectivity Error: {connectivity_message}", style="red")
-        console.print("\n💡 Possible solutions:", style="yellow")
+        console.print("\\n💡 Possible solutions:", style="yellow")
         console.print("   1. Check your internet connection.", style="cyan")
         console.print("   2. Verify your API keys in secrets.json are correct and have sufficient credits.", style="cyan")
         console.print("   3. Check if the API services (Chutes, OpenRouter) are available.", style="cyan")
@@ -165,13 +309,6 @@ def perform_api_validation(test_all_keys: bool = False) -> bool:
     
     console.print("✅ API validation completed successfully.", style="bold green")
     return True
-
-def extract_chapter_number(filename: str) -> int:
-    """Extracts the chapter number from a filename like 'Chapter_123.md'."""
-    match = re.search(r'Chapter_(\d+)\.md', filename)
-    if match:
-        return int(match.group(1))
-    return -1 # Indicates an issue or non-standard filename
 
 def translate(text: str) -> tuple[str, str | None]:
     """
@@ -200,719 +337,6 @@ def _ensure_directory_exists(dir_path: str) -> bool:
             console.print(f"❌ Error creating directory {dir_path}: {e}", style="red")
             return False
     return True
-
-def _validate_chapter_processing(chapter_filename, retry_failed_only, progress_data, max_retries_per_chapter, raws_dir, progress_lock):
-    """
-    Validates if a chapter should be processed based on current state.
-    
-    Returns:
-        tuple: (should_process: bool, error_message: str or None)
-    """
-    chapter_num = extract_chapter_number(chapter_filename)
-    safe_filename_for_fail_key = chapter_filename.replace('.', '\uff0e')
-
-    with progress_lock:
-        # Check against the new dictionary format for translated files.
-        if not retry_failed_only and f"chapter_{chapter_num}" in progress_data.get("translated_files", {}):
-            return False, "Already translated (skipped)"
-
-        current_failure_count = progress_data.get('failed_translation_attempts', {}).get(safe_filename_for_fail_key, 0)
-        if current_failure_count >= max_retries_per_chapter:
-            return False, f"Max retries reached ({current_failure_count})"
-
-    raw_chapter_filepath = os.path.join(raws_dir, chapter_filename)
-    if not os.path.exists(raw_chapter_filepath):
-        with progress_lock:
-            if chapter_filename in progress_data['failed_translation_attempts']:
-                del progress_data['failed_translation_attempts'][chapter_filename]
-        return False, "Raw file not found"
-    
-    return True, None
-
-def _read_chapter_content(chapter_filename, raws_dir):
-    """
-    Reads the content of a chapter file.
-    
-    Returns:
-        tuple: (success: bool, content: str, error_message: str or None)
-    """
-    try:
-        raw_chapter_filepath = os.path.join(raws_dir, chapter_filename)
-        with open(raw_chapter_filepath, 'r', encoding='utf-8') as infile:
-            raw_content = infile.read()
-        return True, raw_content, None
-    except FileNotFoundError:
-        return False, "", "Raw file not found during processing"
-    except Exception as e:
-        return False, "", f"Error reading file: {e}"
-
-def _determine_translation_context():
-    """
-    Determines if a real translation can be attempted.
-    """
-    if not TRANSLATION_AVAILABLE or not LOADED_API_KEYS:
-        return False, "Translation module/keys not available, using placeholder"
-    else:
-        return True, None
-
-def _perform_translation_with_timing(raw_content, chapter_filename, status_or_console):
-    """
-    Performs the actual translation with timing and status updates.
-    """
-    translation_start = time.time()
-    
-    if hasattr(status_or_console, 'update'):
-        status_or_console.update(f"Translating {chapter_filename}...")
-    
-    translated_content, provider = translate(raw_content)
-    translation_time = time.time() - translation_start
-    
-    if translated_content.startswith(("Error:", "HTTP error")):
-        return False, translated_content, translation_time, f"Translation API Error: {translated_content}", None
-    
-    return True, translated_content, translation_time, None, provider
-
-def _save_translated_chapter(chapter_filename, translated_content, translated_raws_dir, status_or_console):
-    """
-    Formats and saves the translated chapter content.
-    
-    Args:
-        status_or_console: Either a rich status object or console object
-    
-    Returns:
-        tuple: (success: bool, error_message: str or None)
-    """
-    try:
-        # Update status if it has an update method (status spinner), otherwise just proceed
-        if hasattr(status_or_console, 'update'):
-            status_or_console.update(f"Saving {chapter_filename}...")
-        
-        chapter_num = extract_chapter_number(chapter_filename)
-        padded_chapter_num = f"{chapter_num:03d}"
-        placeholder_title = chapter_filename.replace(".md", "")
-        formatted_output = f"# Chapter -{padded_chapter_num}\\n## {placeholder_title}\\n\\n{translated_content}"
-        
-        translated_chapter_filepath = os.path.join(translated_raws_dir, chapter_filename)
-        with open(translated_chapter_filepath, 'w', encoding='utf-8') as outfile:
-            outfile.write(formatted_output)
-        
-        return True, None
-    except Exception as e:
-        return False, f"Error saving file: {e}"
-
-def _update_translation_progress(
-    novel_id: ObjectId,
-    chapter_filename: str,
-    progress_data: dict,
-    progress_lock: threading.Lock,
-    success: bool = True
-):
-    """
-    Atomically updates translation progress in MongoDB and syncs the in-memory object.
-    
-    Args:
-        success: True for successful translation, False for failure
-    """
-    chapter_num = extract_chapter_number(chapter_filename)
-    if chapter_num == -1:
-        console.print(f"❌ Could not extract chapter number from {chapter_filename}", style="red")
-        return
-
-    # Use a character that is valid in Mongo keys to replace the dot.
-    safe_filename_for_fail_key = chapter_filename.replace('.', '\uff0e')
-    success_key = f"chapter_{chapter_num}"
-    
-    progress_collection = db_client["translation_progress"]
-
-    if success:
-        # Atomically set the chapter as translated and remove it from failures.
-        update_op = {
-            '$set': {f'translated_files.{success_key}': datetime.utcnow().isoformat()},
-            '$unset': {f'failed_translation_attempts.{safe_filename_for_fail_key}': ""}
-        }
-        progress_collection.update_one({'novel_id': novel_id}, update_op)
-
-        # Update the shared in-memory object under a lock.
-        with progress_lock:
-            progress_data['translated_files'][success_key] = True 
-            if safe_filename_for_fail_key in progress_data['failed_translation_attempts']:
-                del progress_data['failed_translation_attempts'][safe_filename_for_fail_key]
-    else:
-        # Atomically increment the failure count for the chapter.
-        update_op = {
-            '$inc': {f'failed_translation_attempts.{safe_filename_for_fail_key}': 1}
-        }
-        progress_collection.update_one({'novel_id': novel_id}, update_op)
-
-        # Update the shared in-memory object under a lock.
-        with progress_lock:
-            current_count = progress_data['failed_translation_attempts'].get(safe_filename_for_fail_key, 0)
-            progress_data['failed_translation_attempts'][safe_filename_for_fail_key] = current_count + 1
-
-def _process_single_chapter(
-    chapter_filename,
-    retry_failed_only,
-    progress_data,
-    raws_dir,
-    translated_raws_dir,
-    novel_id,
-    max_retries_per_chapter,
-    progress_lock,
-    use_status_spinner=True
-):
-    """
-    Processes a single chapter file for translation using modular helper functions.
-    
-    Args:
-        chapter_filename: Name of the chapter file to process
-        retry_failed_only: Whether this is a retry-only session
-        progress_data: Progress tracking dictionary
-        raws_dir: Directory containing raw chapter files
-        translated_raws_dir: Directory for translated chapter files
-        novel_id: The MongoDB ObjectId of the novel
-        max_retries_per_chapter: Maximum retry attempts per chapter
-        progress_lock: Threading lock for progress data access
-        use_status_spinner: Whether to use a status spinner for console output
-    
-    Returns:
-        tuple: (success: bool, chapter_filename: str, message: str)
-    """
-    # Start timing
-    start_time = time.time()
-    
-    # Step 1: Validate if chapter should be processed
-    should_process, validation_error = _validate_chapter_processing(
-        chapter_filename, retry_failed_only, progress_data, max_retries_per_chapter, raws_dir, progress_lock
-    )
-    if not should_process:
-        validation_error = validation_error or "Unknown validation error"
-        return (True if "skipped" in validation_error else False, chapter_filename, validation_error, 0.0)
-    
-    # Step 2: Create status context for thread-safe output
-    status_text = f"Starting translation of {chapter_filename}..."
-    
-    try:
-        if use_status_spinner:
-            with console.status(status_text, spinner="dots") as status:
-                # Step 3: Read chapter content
-                read_success, raw_content, read_error = _read_chapter_content(chapter_filename, raws_dir)
-                if not read_success:
-                    total_time = time.time() - start_time
-                    console.print(f"❌ FAILED: {chapter_filename} - {read_error} [total_time={total_time:.1f}s]", style="red", markup=False)
-                    return (False, chapter_filename, read_error, 0.0)
-                
-                # Step 4: Determine translation context
-                has_real_translation, info_msg = _determine_translation_context()
-                
-                # Step 5: Perform translation with timing
-                translation_success, translated_content, translation_time, translation_error, provider = _perform_translation_with_timing(
-                    raw_content, chapter_filename, status
-                )
-                
-                if not translation_success:
-                    total_time = time.time() - start_time
-                    status.stop()
-                    console.print(f"❌ FAILED: {chapter_filename} - Translation error [total_time={total_time:.1f}s]", style="red", markup=False)
-                    _update_translation_progress(novel_id, chapter_filename, progress_data, progress_lock, success=False)
-                    return (False, chapter_filename, translation_error, 0.0)
-                
-                # Step 6: Save translated content
-                save_success, save_error = _save_translated_chapter(
-                    chapter_filename, translated_content, translated_raws_dir, status
-                )
-                
-                if not save_success:
-                    total_time = time.time() - start_time
-                    status.stop()
-                    console.print(f"❌ FAILED: {chapter_filename} - {save_error} [total_time={total_time:.1f}s]", style="red", markup=False)
-                    _update_translation_progress(novel_id, chapter_filename, progress_data, progress_lock, success=False)
-                    return (False, chapter_filename, save_error, 0.0)
-                
-                # Step 7: Update progress tracking
-                _update_translation_progress(novel_id, chapter_filename, progress_data, progress_lock, success=True)
-                
-                # Step 8: Calculate final timing and display results
-                total_time = time.time() - start_time
-                status.stop()
-                
-                if info_msg:
-                    console.print(f"⚠️  PLACEHOLDER: {chapter_filename} - {info_msg} [total_time={total_time:.1f}s]", style="yellow", markup=False)
-                    success_msg = f"{info_msg}, saved as placeholder in {total_time:.2f}s"
-                    return (True, chapter_filename, success_msg, 0.0)  # No real translation time for placeholder
-                else:
-                    if use_status_spinner:
-                        if translation_time > 0:
-                            console.print(f"✅ SUCCESS: {chapter_filename} - Translation completed [translation_time={translation_time:.1f}s] [total_time={total_time:.1f}s]", style="green", markup=False)
-                        else:
-                            console.print(f"✅ SUCCESS: {chapter_filename} - Translation completed [total_time={total_time:.1f}s]", style="green", markup=False)
-                    success_msg = f"Successfully translated in {translation_time:.2f}s (Total: {total_time:.2f}s)"
-                    return (True, chapter_filename, success_msg, translation_time)
-        else:
-            # Step 3: Read chapter content
-            read_success, raw_content, read_error = _read_chapter_content(chapter_filename, raws_dir)
-            if not read_success:
-                total_time = time.time() - start_time
-                if use_status_spinner:
-                    console.print(f"❌ FAILED: {chapter_filename} - {read_error} [total_time={total_time:.1f}s]", style="red", markup=False)
-                return (False, chapter_filename, read_error, 0.0)
-            
-            # Step 4: Determine translation context
-            has_real_translation, info_msg = _determine_translation_context()
-            
-            # Step 5: Perform translation with timing
-            translation_success, translated_content, translation_time, translation_error, provider = _perform_translation_with_timing(
-                raw_content, chapter_filename, console
-            )
-            
-            if not translation_success:
-                total_time = time.time() - start_time
-                if use_status_spinner:
-                    console.print(f"❌ FAILED: {chapter_filename} - Translation error [total_time={total_time:.1f}s]", style="red", markup=False)
-                _update_translation_progress(novel_id, chapter_filename, progress_data, progress_lock, success=False)
-                return (False, chapter_filename, translation_error, 0.0)
-            
-            # Step 6: Save translated content
-            save_success, save_error = _save_translated_chapter(
-                chapter_filename, translated_content, translated_raws_dir, console
-            )
-            
-            if not save_success:
-                total_time = time.time() - start_time
-                if use_status_spinner:
-                    console.print(f"❌ FAILED: {chapter_filename} - {save_error} [total_time={total_time:.1f}s]", style="red", markup=False)
-                _update_translation_progress(novel_id, chapter_filename, progress_data, progress_lock, success=False)
-                return (False, chapter_filename, save_error, 0.0)
-            
-            # Step 7: Update progress tracking
-            _update_translation_progress(novel_id, chapter_filename, progress_data, progress_lock, success=True)
-            
-            # Step 8: Calculate final timing and display results
-            total_time = time.time() - start_time
-            
-            if info_msg:
-                if use_status_spinner:
-                    console.print(f"⚠️  PLACEHOLDER: {chapter_filename} - {info_msg} [total_time={total_time:.1f}s]", style="yellow", markup=False)
-                success_msg = f"{info_msg}, saved as placeholder in {total_time:.2f}s"
-                return (True, chapter_filename, success_msg, 0.0)  # No real translation time for placeholder
-            else:
-                if use_status_spinner:
-                    if translation_time > 0:
-                        console.print(f"✅ SUCCESS: {chapter_filename} - Translation completed [translation_time={translation_time:.1f}s] [total_time={total_time:.1f}s]", style="green", markup=False)
-                    else:
-                        console.print(f"✅ SUCCESS: {chapter_filename} - Translation completed [total_time={total_time:.1f}s]", style="green", markup=False)
-                success_msg = f"Successfully translated in {translation_time:.2f}s (Total: {total_time:.2f}s)"
-                return (True, chapter_filename, success_msg, translation_time)
-
-    except Exception as e:
-        total_time = time.time() - start_time
-        if use_status_spinner:
-            console.print(f"❌ FAILED: {chapter_filename} - Processing error: {str(e)} [total_time={total_time:.1f}s]", style="red", markup=False)
-        _update_translation_progress(novel_id, chapter_filename, progress_data, progress_lock, success=False)
-        return (False, chapter_filename, f"Processing error: {e}", 0.0)
-
-def _process_chapters(files_to_process, retry_failed_only, progress_data, raws_dir, translated_raws_dir, novel_id, novel_name_from_dir, max_retries_per_chapter=3, api_call_delay=5, workers=1):
-    """
-    Processes a list of chapter files for translation using multiple workers.
-    
-    Args:
-        files_to_process: List of chapter filenames to process
-        retry_failed_only: Whether this is a retry-only session
-        progress_data: Progress tracking dictionary
-        raws_dir: Directory containing raw chapter files
-        translated_raws_dir: Directory for translated chapter files
-        novel_id: The MongoDB ObjectId for the novel
-        novel_name_from_dir: Novel title from directory name
-        max_retries_per_chapter: Maximum retry attempts per chapter
-        api_call_delay: Delay between API calls in seconds
-        workers: Number of worker threads
-    
-    Returns:
-        int: Number of chapters processed in this session
-    """
-    chapters_processed_this_session = 0
-    progress_lock = threading.Lock()
-    
-    # Start session timing
-    session_start_time = time.time()
-    successful_chapter_times = []  # Track timing for successfully translated chapters
-    
-    if workers == 1:
-        # Single-threaded processing (original behavior)
-        for chapter_filename in files_to_process:
-            chapter_start_time = time.time()
-            success, filename, message, translation_time = _process_single_chapter(
-                chapter_filename, retry_failed_only, progress_data, raws_dir, translated_raws_dir,
-                novel_id, max_retries_per_chapter, progress_lock, use_status_spinner=True
-            )
-            chapter_end_time = time.time()
-            chapter_duration = chapter_end_time - chapter_start_time
-            
-            # Ensure message is never None for string operations
-            message = message or ""
-            
-            if success and "skipped" not in message.lower():
-                chapters_processed_this_session += 1
-                # Only track timing for successful real translations (not skipped or placeholder)
-                if "placeholder" not in message.lower():
-                    successful_chapter_times.append(chapter_duration)
-            
-            # Rate limiting for API calls - only apply for successful real translations
-            # Skip rate limiting for: failures, skipped chapters, or placeholder translations
-            if (success and 
-                TRANSLATION_AVAILABLE and 
-                os.getenv("API_KEY") and 
-                "skipped" not in message.lower() and
-                "placeholder" not in message.lower()):
-                console.print(f"    ⏳ Waiting {api_call_delay} seconds before next API call...", style="dim")
-                time.sleep(api_call_delay)
-    else:
-        # Multi-threaded processing
-        console.print(f"🚀 Starting translation with {workers} workers...", style="bold blue")
-        
-        with ThreadPoolExecutor(max_workers=workers) as executor:
-            # Submit all tasks with timing
-            future_to_chapter = {}
-            chapter_start_times = {}
-            
-            for chapter_filename in files_to_process:
-                chapter_start_time = time.time()
-                future = executor.submit(_process_single_chapter, chapter_filename, retry_failed_only, progress_data, 
-                                       raws_dir, translated_raws_dir, novel_id, max_retries_per_chapter, progress_lock, use_status_spinner=False)
-                future_to_chapter[future] = chapter_filename
-                chapter_start_times[future] = chapter_start_time
-            
-            # Process completed tasks
-            for future in as_completed(future_to_chapter):
-                chapter_filename = future_to_chapter[future]
-                chapter_start_time = chapter_start_times[future]
-                chapter_duration = time.time() - chapter_start_time
-                
-                try:
-                    success, filename, message, translation_time = future.result()
-                    
-                    # Ensure message is never None for string operations
-                    message = message or ""
-                    
-                    # Print individual chapter completion status with timing
-                    if success:
-                        if "skipped" in message.lower():
-                            console.print(f"⏭️  SKIPPED: {chapter_filename} - {message} [total_time={chapter_duration:.1f}s]", style="dim", markup=False)
-                        elif "placeholder" in message.lower():
-                            console.print(f"⚠️  PLACEHOLDER: {chapter_filename} - Translation completed (placeholder) [total_time={chapter_duration:.1f}s]", style="yellow", markup=False)
-                        else:
-                            if translation_time > 0:
-                                console.print(f"✅ SUCCESS: {chapter_filename} - Translation completed [translation_time={translation_time:.1f}s] [total_time={chapter_duration:.1f}s]", style="green", markup=False)
-                            else:
-                                console.print(f"✅ SUCCESS: {chapter_filename} - Translation completed [total_time={chapter_duration:.1f}s]", style="green", markup=False)
-                    else:
-                        console.print(f"❌ FAILED: {chapter_filename} - {message} [total_time={chapter_duration:.1f}s]", style="red", markup=False)
-                    
-                    if success and "skipped" not in message.lower():
-                        chapters_processed_this_session += 1
-                        # Only track timing for successful real translations (not skipped or placeholder)
-                        if "placeholder" not in message.lower():
-                            successful_chapter_times.append(chapter_duration)
-                        
-                    # Rate limiting for multi-threaded API calls - only apply for successful real translations
-                    # Skip rate limiting for: failures, skipped chapters, or placeholder translations
-                    if (success and 
-                        TRANSLATION_AVAILABLE and 
-                        os.getenv("API_KEY") and 
-                        "skipped" not in message.lower() and
-                        "placeholder" not in message.lower()):
-                        time.sleep(api_call_delay / workers)  # Distribute delay across workers
-                        
-                except Exception as e:
-                    console.print(f"❌ {chapter_filename}: Unexpected error: {e}", style="red")
-
-    # Calculate session timing and statistics
-    session_end_time = time.time()
-    total_session_time = session_end_time - session_start_time
-    
-    console.print(f"\n🎉 Translation session finished for '{novel_name_from_dir}'.", style="bold green")
-    console.print(f"📊 Chapters processed (or attempted) in this session: {chapters_processed_this_session}", style="blue")
-    console.print(f"📋 Total chapters marked as successfully translated: {len(progress_data['translated_files'])}", style="blue")
-    
-    # Timing statistics
-    console.print(f"⏱️  Session timing:", style="bold cyan")
-    console.print(f"   • Total session time: {total_session_time:.1f} seconds ({total_session_time/60:.1f} minutes)", style="cyan")
-    
-    if successful_chapter_times:
-        # For average time per chapter, use session time divided by chapters (accounts for parallel processing)
-        avg_time_per_chapter = total_session_time / len(successful_chapter_times)
-        console.print(f"   • Chapters successfully translated: {len(successful_chapter_times)}", style="cyan")
-        console.print(f"   • Average time per chapter: {avg_time_per_chapter:.1f} seconds", style="cyan")
-        console.print(f"   • Fastest chapter: {min(successful_chapter_times):.1f} seconds", style="cyan")
-        console.print(f"   • Slowest chapter: {max(successful_chapter_times):.1f} seconds", style="cyan")
-    else:
-        console.print(f"   • No chapters were successfully translated in this session", style="dim cyan")
-    
-    if progress_data['failed_translation_attempts']:
-        console.print("⚠️  Chapters with persistent translation failures:", style="yellow")
-        for fname, count in progress_data['failed_translation_attempts'].items():
-            console.print(f"  - {fname}: {count} attempts", style="dim yellow")
-    
-    return chapters_processed_this_session
-
-def translate_novel_chapters(novel_title: str, retry_failed_only: bool = False, skip_validation: bool = False):
-    """
-    Processes raw chapter files, translates them using the specified provider, and saves them.
-    Maintains progress and can optionally only retry previously failed translations.
-    
-    Args:
-        novel_title: The title of the novel to be translated.
-        retry_failed_only: Whether to only retry previously failed translations
-        skip_validation: Whether to skip API validation (default: False, validation runs by default)
-    """
-    # Perform API validation before starting translation (unless skipped)
-    if not skip_validation:
-        if not perform_api_validation():
-            console.print("\n❌ API validation failed. Cannot proceed with translation.", style="bold red")
-            console.print("Please fix the API configuration issues above and try again.", style="yellow")
-            console.print("💡 Tip: Use --skip-validation to bypass this check (not recommended).", style="cyan")
-            return
-    else:
-        console.print("⚠️  API validation skipped as requested.", style="yellow")
-
-    # --- MongoDB Integration for Translation Progress ---
-    novels_collection = db_client["novels"]
-    progress_collection = db_client["translation_progress"]
-
-    # Find the novel in the database to get its ID and path
-    novel_doc = novels_collection.find_one({'novel_name': novel_title})
-    if not novel_doc or 'folder_path' not in novel_doc:
-        console.print(f"❌ Error: Novel '{novel_title}' not found in the database or record is missing a folder path.", style="red")
-        console.print(f"💡 Please make sure you have scraped this novel first using the scrape command.", style="yellow")
-        return
-        
-    novel_id = novel_doc['_id']
-    novel_base_directory = novel_doc['folder_path']
-    # The novel name from the directory might be different (e.g. with underscores), so we derive it for path construction.
-    novel_name_from_dir = os.path.basename(os.path.normpath(novel_base_directory))
-
-    raws_dir = os.path.join(novel_base_directory, f"{novel_name_from_dir}-Raws")
-    translated_raws_dir = os.path.join(novel_base_directory, f"{novel_name_from_dir}-English")
-
-    if not os.path.isdir(raws_dir):
-        console.print(f"❌ Error: Raws directory not found at '{raws_dir}'", style="red")
-        return
-
-    if not _ensure_directory_exists(translated_raws_dir):
-        return
-    
-    # Load or create translation progress document
-    progress_doc = progress_collection.find_one({'novel_id': novel_id})
-    
-    if progress_doc:
-        progress_data = progress_doc
-
-        # --- Backwards Compatibility & Data Cleaning ---
-        # 1. Convert `translated_files` from old list format to new dict format.
-        if isinstance(progress_data.get('translated_files'), list):
-            console.print("🔧 Found old list format for 'translated_files'. Converting to new dictionary format...", style="yellow")
-            old_list = progress_data.get('translated_files', [])
-            new_dict = {}
-            for filename in old_list:
-                num = extract_chapter_number(filename)
-                if num != -1:
-                    new_dict[f"chapter_{num}"] = True # Value can be simple, timestamp is in DB
-            progress_data['translated_files'] = new_dict
-
-        # 2. Clean keys with special character back to dots for in-memory use.
-        progress_data['failed_translation_attempts'] = {
-            k.replace('\uff0e', '.'): v for k, v in progress_data.get('failed_translation_attempts', {}).items()
-        }
-        console.print(f"📂 Loaded translation progress for '{novel_name_from_dir}' from MongoDB.", style="blue")
-    else:
-        console.print(f"📄 No translation progress found in MongoDB. Starting new translation process for '{novel_name_from_dir}'.", style="blue")
-        progress_data = {
-            "novel_id": novel_id,
-            "novel_title": novel_title,
-            "last_used_provider": "dynamic (see secrets.json)",
-            "translated_files": {}, # Use a dictionary now
-            "failed_translation_attempts": {}
-        }
-        # Insert the new record and then load it back to ensure consistency
-        progress_collection.insert_one(progress_data.copy())
-        # The failed attempts dict in the DB should use safe keys from the start
-        progress_data['failed_translation_attempts'] = {}
-
-    files_to_process = []
-    if retry_failed_only:
-        console.print("🔄 Mode: Retrying Failed Translations Only", style="bold yellow")
-        if not progress_data['failed_translation_attempts']:
-            console.print("✅ No previously failed translations found in progress file. Nothing to retry.", style="green")
-            return
-        files_to_process = sorted(
-            list(progress_data['failed_translation_attempts'].keys()), 
-            key=extract_chapter_number
-        )
-        console.print(f"🔍 Found {len(files_to_process)} chapters to retry.", style="yellow")
-        
-        # Process the failed chapters once and exit
-        chapters_processed_this_session = _process_chapters(files_to_process, retry_failed_only, progress_data, raws_dir, translated_raws_dir, novel_id, novel_name_from_dir, workers=args.workers)
-    else:
-        console.print("🆕 Mode: Standard Translation (New & Unfinished) - Dynamic Discovery", style="bold green")
-        console.print("📁 Will continuously check for new chapters during translation...", style="cyan")
-        
-        total_chapters_processed_this_session = 0
-        iteration = 1
-        max_retries_per_chapter = 3  # Default value
-        
-        while True:
-            # Get current list of all raw files
-            try:
-                all_raw_files = [f for f in os.listdir(raws_dir) if f.startswith("Chapter_") and f.endswith(".md")]
-                all_raw_files.sort(key=extract_chapter_number)
-            except FileNotFoundError:
-                console.print(f"❌ Error: Raws directory not found at {raws_dir} when trying to list files.", style="red")
-                return
-            
-            if not all_raw_files:
-                if iteration == 1:
-                    console.print(f"📁 No chapter files found in {raws_dir}.", style="yellow")
-                break
-            
-            # Filter to get only unprocessed files
-            unprocessed_files = []
-            for filename in all_raw_files:
-                chapter_num = extract_chapter_number(filename)
-                if f"chapter_{chapter_num}" not in progress_data.get("translated_files", {}):
-                    # Also check if it's not currently failing too many times
-                    safe_filename_for_fail_key = filename.replace('.', '\uff0e')
-                    current_failure_count = progress_data.get('failed_translation_attempts', {}).get(safe_filename_for_fail_key, 0)
-                    if current_failure_count < max_retries_per_chapter:
-                        unprocessed_files.append(filename)
-            
-            if not unprocessed_files:
-                console.print(f"✅ No more chapters to process. All available chapters have been translated or have reached max retry limit.", style="green")
-                break
-            
-            console.print(f"\n🔄 Iteration {iteration}: Found {len(unprocessed_files)} chapters to process", style="bold blue")
-            console.print(f"📚 Total chapters in directory: {len(all_raw_files)}", style="blue")
-            console.print(f"✅ Already translated: {len(progress_data['translated_files'])}", style="green")
-            failed_at_limit = len([f for f in progress_data['failed_translation_attempts'] if progress_data['failed_translation_attempts'][f] >= max_retries_per_chapter])
-            if failed_at_limit > 0:
-                console.print(f"❌ Failed (at retry limit): {failed_at_limit}", style="red")
-            
-            # Process this batch of unprocessed files
-            chapters_processed_this_batch = _process_chapters(
-                unprocessed_files, 
-                retry_failed_only, 
-                progress_data, 
-                raws_dir, 
-                translated_raws_dir, 
-                novel_id, 
-                novel_name_from_dir, 
-                workers=args.workers
-            )
-            
-            total_chapters_processed_this_session += chapters_processed_this_batch
-            
-            # If no chapters were processed in this iteration, break to avoid infinite loop
-            if chapters_processed_this_batch == 0:
-                console.print("⏹️  No chapters were processed in this iteration. Stopping to avoid infinite loop.", style="yellow")
-                break
-            
-            iteration += 1
-            
-            # Brief pause before checking for new files again (only if we processed something)
-            console.print("⏳ Checking for new chapters in 3 seconds...", style="dim")
-            time.sleep(3)
-        
-        console.print(f"\n🎯 Dynamic translation completed! Total chapters processed across all iterations: {total_chapters_processed_this_session}", style="bold green")
-        return  # Return here since we already processed everything
-
-def _process_single_chapter_from_db(
-    raw_chapter: dict,
-    db: Database,
-    novel_name: str,
-    max_retries: int = 3,
-):
-    """
-    Processes a single chapter from a raw chapter record from the database.
-    """
-    raw_chapter_id = raw_chapter["_id"]
-    novel_id = raw_chapter["novel_id"]
-    chapter_title = raw_chapter["title"]
-    chapter_content = raw_chapter["content"]
-    n_tries = 0
-    provider = None
-
-    try:
-        # 1. Translate title
-        translated_title, _ = translate(chapter_title)
-        if translated_title.startswith("Error:"):
-            console.print(f"Failed to translate title for chapter {raw_chapter_id}: {translated_title}", style="red")
-            # Decide if we should proceed with original title or fail
-            translated_title = chapter_title # fallback to original title
-
-        # 2. Create progress record
-        progress_id = create_translation_progress_record(db, novel_id, raw_chapter_id, translated_title)
-
-        # 3. Translate content
-        translated_content, provider = translate(chapter_content)
-        n_tries += 1
-        if translated_content.startswith("Error:"):
-            raise Exception(f"Translation failed: {translated_content}")
-
-        # 4. Save translated chapter
-        translation_dir = os.path.join("Novels", novel_name, "Translations")
-        _ensure_directory_exists(translation_dir)
-        
-        # We need a filename. Let's use the translated title.
-        # Sanitize filename
-        safe_filename = "".join(x for x in translated_title if x.isalnum() or x in " ._").rstrip()
-        save_path = os.path.join(translation_dir, f"{safe_filename}.md")
-        
-        with open(save_path, 'w', encoding='utf-8') as f:
-            f.write(f"# {translated_title}\\n\\n{translated_content}")
-
-        # 5. Finalize record
-        finalize_translation_record(db, progress_id, "completed", save_path, provider, n_tries)
-        console.print(f"Successfully translated and saved chapter {raw_chapter_id}", style="green")
-
-    except Exception as e:
-        console.print(f"Error processing chapter {raw_chapter_id}: {e}", style="red")
-        if 'progress_id' in locals():
-            finalize_translation_record(db, progress_id, "failed", "", provider if provider else "N/A", n_tries)
-
-
-def translate_novel_by_id(novel_id: str, workers: int = 1):
-    """
-    Translates a novel using the new database-driven approach.
-    """
-    console.print(f"Starting translation for novel {novel_id} with {workers} workers.", style="bold blue")
-    
-    db = db_client
-    lock = threading.Lock()
-    
-    novel = db.novels.find_one({"_id": ObjectId(novel_id)})
-    if not novel:
-        console.print(f"Novel with id {novel_id} not found.", style="red")
-        return
-
-    novel_name = novel["title"]
-
-    with ThreadPoolExecutor(max_workers=workers) as executor:
-        futures = []
-        while True:
-            raw_chapter = get_raw_chapter_for_translation(db, novel_id, lock)
-            if not raw_chapter:
-                console.print("No more chapters to translate.", style="yellow")
-                break
-            
-            console.print(f"Submitting chapter {raw_chapter['_id']} for translation.", style="dim")
-            futures.append(executor.submit(_process_single_chapter_from_db, raw_chapter, db, novel_name))
-            
-        for future in as_completed(futures):
-            try:
-                future.result()
-            except Exception as e:
-                console.print(f"A worker failed: {e}", style="red")
-
-    console.print(f"Translation finished for novel {novel_id}.", style="bold green")
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
