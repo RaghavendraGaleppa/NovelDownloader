@@ -212,3 +212,5 @@ ENV/
 # IDE files
 .vscode/
 .idea/
+
+feature_design/
