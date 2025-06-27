@@ -6,7 +6,7 @@ This tool combines scraping, translation, and EPUB conversion functionality
 for processing Chinese novels into English EPUB files.
 
 Usage:
-    python tool.py scrape -n "URL" "TITLE" [-m MAX_CHAPTERS] [-o OUTPUT_PATH]
+    python tool.py scrape --novel-title "TITLE" [--start-url "URL"] [-m MAX_CHAPTERS] [-o OUTPUT_PATH]
     python tool.py translate -n NOVEL_DIR [-r] [-p PROVIDER] [-w WORKERS]
     python tool.py convert -f FOLDER_PATH -o OUTPUT.epub [-t TITLE] [-a AUTHOR]
 """
@@ -16,6 +16,11 @@ import sys
 import os
 import json
 from rich.console import Console
+import sys
+
+# Doing this temporarily since I will migrating to server and no more command line tools will be used
+current_folder = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(os.path.join(current_folder, "src"))
 
 # Import the main functions from our organized modules
 from src.scraping.parse_chapter import main as scrape_main
@@ -27,48 +32,8 @@ def cmd_scrape(args):
     """Handle the scrape subcommand"""
     print("🕷️  Starting novel scraping...")
     
-    # Create a namespace object that matches what parse_chapter.main expects
-    scrape_args = argparse.Namespace()
-    scrape_args.max_chapters = args.max_chapters
-    scrape_args.output_path = args.output_path
-    
-    if args.resume:
-        # Resume mode - find progress file in the specified folder
-        folder_path = args.resume
-        
-        if not os.path.isdir(folder_path):
-            print(f"❌ Error: Folder not found: {folder_path}")
-            return
-        
-        # Look for progress JSON files in the folder
-        progress_files = [f for f in os.listdir(folder_path) if f.endswith('_progress.json')]
-        
-        if not progress_files:
-            print(f"❌ Error: No progress file found in {folder_path}")
-            print("   Progress files should end with '_progress.json'")
-            return
-        
-        if len(progress_files) > 1:
-            print(f"⚠️  Warning: Multiple progress files found in {folder_path}:")
-            for i, pf in enumerate(progress_files, 1):
-                print(f"   {i}. {pf}")
-            print("   Using the first one found.")
-        
-        progress_file_path = os.path.join(folder_path, progress_files[0])
-        print(f"📁 Found progress file: {progress_file_path}")
-        
-        # Set up args for resume mode
-        scrape_args.progress_file = progress_file_path
-        scrape_args.new_scrape = None
-        
-    else:
-        # New scrape mode
-        args.url, args.title = args.url_title
-        scrape_args.new_scrape = [args.url, args.title]
-        scrape_args.progress_file = None
-    
-    # Call the main scraping function
-    scrape_main(scrape_args)
+    # The args object from argparse now directly matches what parse_chapter.main expects.
+    scrape_main(args)
 
 
 def cmd_validate(args):
@@ -227,23 +192,18 @@ def main():
     scrape_parser = subparsers.add_parser(
         'scrape',
         help='Scrape novel chapters from websites',
-        description='Scrape novel chapters from supported websites (69shu, 1qxs, etc.)',
+        description='Scrape novel chapters from supported websites. Progress is now tracked in MongoDB.',
         formatter_class=argparse.RawTextHelpFormatter
     )
     
-    # Create mutually exclusive group for new scrape vs resume
-    scrape_group = scrape_parser.add_mutually_exclusive_group(required=True)
-    scrape_group.add_argument(
-        '-n', '--new-scrape',
-        nargs=2,
-        metavar=('URL', 'TITLE'),
-        dest='url_title',
-        help='Start a new scrape. Requires URL and TITLE.\nExample: -n "https://example.com/chapter1" "My Novel Title"'
+    scrape_parser.add_argument(
+        '--novel-title',
+        required=True,
+        help='Title of the novel. Used to identify the novel in the database for new scrapes or resuming.'
     )
-    scrape_group.add_argument(
-        '-r', '--resume',
-        metavar='FOLDER_PATH',
-        help='Resume scraping from a novel folder. Automatically finds progress file.\nExample: -r "Novels/My_Novel_Title"'
+    scrape_parser.add_argument(
+        '--start-url',
+        help='The starting URL for a scrape. Required only for new novels not yet in the database.'
     )
     
     scrape_parser.add_argument(
@@ -372,11 +332,11 @@ def main():
         print("# Validate API configuration:")
         print('python tool.py validate -p chutes')
         print()
-        print("# Scrape a novel from 69shu:")
-        print('python tool.py scrape -n "https://www.69shu.com/book/123.htm" "Novel Title"')
+        print("# Scrape a new novel from a URL:")
+        print('python tool.py scrape --novel-title "My Awesome Novel" --start-url "https://www.69shu.com/book/123.htm"')
         print()
-        print("# Resume scraping from a folder:")
-        print('python tool.py scrape -r "Novels/Novel_Title"')
+        print("# Resume scraping an existing novel:")
+        print('python tool.py scrape --novel-title "My Awesome Novel"')
         print()
         print("# Translate scraped chapters:")
         print('python tool.py translate -n "./Novels/Novel_Title" -p chutes')
@@ -386,17 +346,12 @@ def main():
         print()
         print("# Full workflow example:")
         print('python tool.py validate -p chutes  # Test API first')
-        print('python tool.py scrape -n "https://www.69shu.com/book/123.htm" "My Novel" -m 50')
-        print('python tool.py scrape -r "Novels/My_Novel"  # Resume if needed')
+        print('python tool.py scrape --novel-title "My Novel" --start-url "https://www.69shu.com/book/123.htm" -m 50')
+        print('python tool.py scrape --novel-title "My Novel"  # Resume if needed')
         print('python tool.py info -d "./Novels/My_Novel"  # Check progress')
         print('python tool.py translate -n "./Novels/My_Novel" -p chutes -w 2')
         print('python tool.py convert -f "./Novels/My_Novel/My_Novel-English" -o "my_novel.epub" -t "My Novel" -a "Author"')
         return
-    
-    # Extract URL and title for scrape command
-    if args.command == 'scrape':
-        if hasattr(args, 'url_title') and args.url_title:
-            args.url, args.title = args.url_title
     
     # Call the appropriate function
     try:
