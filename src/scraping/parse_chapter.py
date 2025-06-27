@@ -13,6 +13,7 @@ from urllib.parse import urlparse
 from typing import Optional
 from datetime import datetime
 from main import db_client
+from bson.objectid import ObjectId
 
 # Disable SSL warnings
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -231,41 +232,20 @@ def _ensure_output_directory(dir_path: str) -> bool:
             return False
     return True
 
-def _attempt_cleanup_completed_progress_file(progress_file_path: str):
-    """Checks if the progress file indicates completion and removes it if so."""
-    if os.path.exists(progress_file_path):
-        try:
-            with open(progress_file_path, 'r', encoding='utf-8') as pf:
-                progress_data = json.load(pf)
-            if progress_data.get('next_url_to_scrape') is None:
-                os.remove(progress_file_path)
-                print(f"Cleaned up completed progress file: {progress_file_path}")
-        except (json.JSONDecodeError, IOError, OSError) as e:
-            print(f"Could not process or remove progress file {progress_file_path} during cleanup: {e}")
-
 def _save_current_progress(
-    progress_file_path: str, 
-    novel_title: str, 
-    original_start_url: str, 
-    output_base_dir_name: str, 
-    processed_url: str | None, # URL of the chapter just processed (or None if initial save)
+    novel_id: ObjectId, 
+    processed_url: str | None, # URL of the chapter just processed
     next_url_to_process: str | None
 ):
-    """Saves the current scraping progress (including identity) to the progress file."""
-    progress_data_to_save = {
-        'novel_title': novel_title,
-        'original_start_url': original_start_url,
-        'output_base_dir_name': output_base_dir_name,
-        'last_scraped_url': processed_url, # Can be None initially
-        'next_url_to_scrape': next_url_to_process
-    }
-    try:
-        # Ensure parent directory for progress file exists
-        os.makedirs(os.path.dirname(progress_file_path), exist_ok=True)
-        with open(progress_file_path, 'w', encoding='utf-8') as pf:
-            json.dump(progress_data_to_save, pf, indent=4)
-    except IOError as e:
-        print(f"Error saving progress to {progress_file_path}: {e}")
+    """Saves the current scraping progress to MongoDB."""
+    progress_collection = db_client["scraping_progress"]
+    progress_collection.update_one(
+        {'novel_id': novel_id},
+        {'$set': {
+            'last_scraped_url': processed_url,
+            'next_url_to_scrape': next_url_to_process
+        }}
+    )
 
 def _create_chapter_file(output_dir_path: str, chapter_num_str: str, title: str, paragraphs: list[str]) -> bool:
     """Creates or appends to a markdown file for the given chapter content in the specified output directory."""
@@ -302,94 +282,88 @@ def main(args: argparse.Namespace):
     original_start_url: str
     current_url: str | None
     safe_novel_title_dir_name: str # This is the output_base_dir_name
-    progress_file_path: str
     output_dir_path: str # For Raws subfolder
+    novel_id: ObjectId
 
-    if args.progress_file:  # Resume with explicit progress file
-        progress_file_path = args.progress_file
-        if not os.path.exists(progress_file_path):
-            print(f"Error: Progress file not found: {progress_file_path}")
-            return
-
-        try:
-            with open(progress_file_path, 'r', encoding='utf-8') as pf:
-                data = json.load(pf)
-            novel_title = data['novel_title']
-            original_start_url = data['original_start_url']
-            safe_novel_title_dir_name = data['output_base_dir_name']
-            current_url = data.get('next_url_to_scrape')
-            print(f"Resuming scrape for '{novel_title}' from progress file: {progress_file_path}")
-            if current_url is None:
-                print("Progress file indicates task was already completed.")
-                _attempt_cleanup_completed_progress_file(progress_file_path)
-                return
-        except (KeyError, json.JSONDecodeError, IOError) as e:
-            print(f"Error reading or parsing progress file {progress_file_path}: {e}")
-            return
+    novel_title = args.novel_title
+    start_url_param = args.start_url
     
-    elif args.new_scrape:  # New scrape (or implicit resume)
-        start_url_param = args.new_scrape[0]
-        novel_title_param = args.new_scrape[1]
-        
-        novel_title = novel_title_param
-        original_start_url = start_url_param # Tentative, might be overwritten if implicitly resuming
-        safe_novel_title_dir_name = novel_title.replace(' ', '_').replace('/', '_').replace('\\', '_')
-        
-        # Use custom output path if provided, otherwise use Novels/novel_title directory structure
-        if args.output_path:
-            base_output_dir = args.output_path
-            progress_file_path = os.path.join(base_output_dir, f"{safe_novel_title_dir_name}_progress.json")
-        else:
-            base_output_dir = os.path.join("Novels", safe_novel_title_dir_name)
-            progress_file_path = os.path.join(base_output_dir, f"{safe_novel_title_dir_name}_progress.json")
-
-        if os.path.exists(progress_file_path):
-            print(f"Found existing progress file based on novel title: {progress_file_path}. Attempting implicit resume.")
-            try:
-                with open(progress_file_path, 'r', encoding='utf-8') as pf:
-                    data = json.load(pf)
-                # Use data from file for consistency if implicitly resuming
-                novel_title = data.get('novel_title', novel_title) # Prefer file if available
-                original_start_url = data.get('original_start_url', original_start_url) # Prefer file
-                safe_novel_title_dir_name = data.get('output_base_dir_name', safe_novel_title_dir_name) # Prefer file
-                current_url = data.get('next_url_to_scrape')
-                
-                if current_url is None:
-                    print("Existing progress file indicates task was already completed.")
-                    _attempt_cleanup_completed_progress_file(progress_file_path)
-                    return
-                print(f"Implicitly resuming for '{novel_title}'. Next URL: {current_url}")
-            except (KeyError, json.JSONDecodeError, IOError) as e:
-                print(f"Error reading existing progress file {progress_file_path}: {e}. Starting as new scrape from {original_start_url}.")
-                current_url = original_start_url
-                # Save initial full progress for this truly new attempt
-                _save_current_progress(progress_file_path, novel_title, original_start_url, base_output_dir, None, current_url)
-        else:
-            print(f"Starting new scrape for '{novel_title}' from URL: {original_start_url}")
-            
-            # --- MongoDB integration for new novel ---
-            novels_collection = db_client["novels"]
-                
-            # Check if novel already exists before adding
-            if novels_collection.count_documents({'novel_name': novel_title}, limit=1) == 0:
-                absolute_folder_path = os.path.abspath(base_output_dir)
-                novel_document = {
-                    'novel_name': novel_title,
-                    'added_datetime': datetime.now(),
-                    'folder_path': absolute_folder_path
-                }
-                novels_collection.insert_one(novel_document)
-                print(f"Added entry for '{novel_title}' to MongoDB.")
-            else:
-                print(f"Novel '{novel_title}' already exists in MongoDB, skipping entry creation.")
-
-            current_url = original_start_url
-            # Save initial progress state for a brand new scrape
-            _save_current_progress(progress_file_path, novel_title, original_start_url, base_output_dir, None, current_url)
+    safe_novel_title_dir_name = novel_title.replace(' ', '_').replace('/', '_').replace('\\', '_')
+    
+    # Use custom output path if provided, otherwise use Novels/novel_title directory structure
+    if args.output_path:
+        base_output_dir = args.output_path
     else:
-        # Should not happen due to mutually exclusive group in argparse
-        print("Error: Invalid arguments. Please specify a progress file or new scrape details.")
-        return
+        base_output_dir = os.path.join("Novels", safe_novel_title_dir_name)
+
+    # --- MongoDB integration for progress ---
+    novels_collection = db_client["novels"]
+    progress_collection = db_client["scraping_progress"]
+
+    # Check if novel exists to decide between new scrape and resume
+    novel_doc = novels_collection.find_one({'novel_name': novel_title})
+
+    if novel_doc:
+        # Novel exists, potential resume
+        novel_id = novel_doc['_id']
+        print(f"Found existing novel '{novel_title}' with ID: {novel_id}. Checking for progress.")
+
+        progress_doc = progress_collection.find_one({'novel_id': novel_id})
+
+        if progress_doc:
+            # Resume scrape
+            original_start_url = progress_doc['original_start_url']
+            safe_novel_title_dir_name = progress_doc['output_base_dir_name']
+            current_url = progress_doc.get('next_url_to_scrape')
+            print(f"Resuming scrape for '{novel_title}'.")
+            if current_url is None:
+                print("Progress data indicates task was already completed.")
+                return
+        else:
+            # Novel exists but no progress. Start from beginning, but need a URL.
+            if not start_url_param:
+                print(f"Error: Novel '{novel_title}' exists but has no progress record. Please provide a --start-url.")
+                return
+            
+            print(f"No active progress found for '{novel_title}'. Starting new scraping session from {start_url_param}.")
+            original_start_url = start_url_param
+            current_url = original_start_url
+            progress_collection.insert_one({
+                'novel_id': novel_id,
+                'original_start_url': original_start_url,
+                'output_base_dir_name': safe_novel_title_dir_name,
+                'last_scraped_url': None,
+                'next_url_to_scrape': current_url
+            })
+    else:
+        # New novel, new scrape
+        if not start_url_param:
+            print(f"Error: Novel '{novel_title}' not found in DB. Please provide a --start-url to start scraping.")
+            return
+
+        print(f"Starting new scrape for '{novel_title}' from URL: {start_url_param}")
+        original_start_url = start_url_param
+        current_url = original_start_url
+
+        absolute_folder_path = os.path.abspath(base_output_dir)
+        novel_document = {
+            'novel_name': novel_title,
+            'added_datetime': datetime.now(),
+            'folder_path': absolute_folder_path
+        }
+        insert_result = novels_collection.insert_one(novel_document)
+        novel_id = insert_result.inserted_id
+        print(f"Added entry for '{novel_title}' to MongoDB with ID: {novel_id}.")
+
+        # Insert into scraping_progress collection
+        progress_collection.insert_one({
+            'novel_id': novel_id,
+            'original_start_url': original_start_url,
+            'output_base_dir_name': safe_novel_title_dir_name,
+            'last_scraped_url': None,
+            'next_url_to_scrape': current_url
+        })
+        print("Created new progress tracking record.")
 
     # Set final output directory - use custom path if provided, otherwise use Novels/novel_title with novel-specific Raws subfolder
     if args.output_path:
@@ -411,13 +385,11 @@ def main(args: argparse.Namespace):
 
     print(f"--- Starting scrape for '{novel_title}' --- URL: {current_url}")
     print(f"Output directory: {output_dir_path}")
-    print(f"Progress file: {progress_file_path}")
     print(f"Maximum chapters to scrape in this session: {max_chapters}")
 
     for i in range(max_chapters):
         if not current_url:
             print("No more chapters to scrape (current URL is None).")
-            _attempt_cleanup_completed_progress_file(progress_file_path)
             break
 
         print(f"Scraping chapter from: {current_url}")
@@ -430,7 +402,7 @@ def main(args: argparse.Namespace):
 
         if not chapter_num_str:
             print(f"Warning: Could not determine chapter number for URL {current_url} (Title: \"{title}\"). Skipping save.")
-            _save_current_progress(progress_file_path, novel_title, original_start_url, safe_novel_title_dir_name, current_url, next_url_from_scraper)
+            _save_current_progress(novel_id, current_url, next_url_from_scraper)
             print(f"Progress updated to skip {current_url}.")
         else:
             # Check if file exists before creation to determine action
@@ -445,11 +417,10 @@ def main(args: argparse.Namespace):
                 file_action = "Appended to existing" if file_existed else "Successfully saved new"
                 print(f"{file_action}: {filepath} (Session total: {chapters_saved_this_session})")
                 
-                _save_current_progress(progress_file_path, novel_title, original_start_url, safe_novel_title_dir_name, current_url, next_url_from_scraper)
+                _save_current_progress(novel_id, current_url, next_url_from_scraper)
 
                 if not next_url_from_scraper:
                     print("Successfully processed the last available chapter for this novel.")
-                    _attempt_cleanup_completed_progress_file(progress_file_path)
             else:
                 print(f"Failed to save {os.path.join(output_dir_path, f'Chapter_{chapter_num_str}.md')}. Stopping session to allow retry.")
                 break
@@ -465,23 +436,21 @@ def main(args: argparse.Namespace):
     else: 
         if i == max_chapters - 1 and current_url:
             print(f"Reached maximum scrape limit of {max_chapters} chapters for '{novel_title}'.")
-            print(f"More chapters might be available. Progress for resuming from {current_url} is saved in {progress_file_path}.")
+            print(f"More chapters might be available. Progress for resuming from {current_url} is saved.")
 
     print(f"\nScraping session finished for '{novel_title}'. Total chapters saved in this session: {chapters_saved_this_session}")
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Scrape novel chapters. Provide either a progress file to resume or details for a new scrape.",
+        description="Scrape novel chapters from a URL, with progress tracking in MongoDB.",
         formatter_class=argparse.RawTextHelpFormatter # For better help text formatting
     )
-    group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument("-p", "--progress-file", 
-                       help="Path to an existing progress JSON file to resume scraping.")
-    group.add_argument("-n", "--new-scrape", 
-                       nargs=2, 
-                       metavar=('START_URL', 'NOVEL_TITLE'),
-                       help="Start a new scrape. Requires START_URL and NOVEL_TITLE.\nExample: -n \"https://example.com/chapter1\" \"My Novel Title\"")
+    parser.add_argument("--novel-title",
+                        required=True,
+                        help="Title of the novel. Used to identify novel in the database.")
+    parser.add_argument("--start-url",
+                        help="The starting URL for a scrape. Required for new novels.")
 
     parser.add_argument("-m", "--max-chapters", 
                         type=int, 
