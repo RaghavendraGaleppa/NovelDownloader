@@ -17,6 +17,7 @@ import os
 import json
 from rich.console import Console
 import sys
+from main import db_client
 
 # Doing this temporarily since I will migrating to server and no more command line tools will be used
 current_folder = os.path.dirname(os.path.abspath(__file__))
@@ -57,9 +58,21 @@ def cmd_translate(args):
     """Handle the translate subcommand"""
     print("🔤 Starting novel translation...")
     
-    # Validate the novel directory exists
-    if not os.path.isdir(args.novel_base_directory):
-        print(f"❌ Error: The provided path '{args.novel_base_directory}' is not a valid directory.")
+    # --- Look up novel directory from DB ---
+    novels_collection = db_client["novels"]
+    novel_doc = novels_collection.find_one({'novel_name': args.novel_title})
+
+    if not novel_doc or 'folder_path' not in novel_doc:
+        print(f"❌ Error: Novel '{args.novel_title}' not found in database or record is missing a folder path.")
+        print("💡 Please scrape the novel first or ensure the database record is correct.")
+        return
+        
+    novel_base_directory = novel_doc['folder_path']
+    print(f"📂 Found novel directory: {novel_base_directory}")
+    
+    # Validate the novel directory exists on the filesystem
+    if not os.path.isdir(novel_base_directory):
+        print(f"❌ Error: The directory '{novel_base_directory}' from the database does not exist.")
         return
     
     # Import the translate function and create a proper args namespace
@@ -76,7 +89,7 @@ def cmd_translate(args):
     
     # Call the translation function with the specified parameters
     translate_novel_chapters(
-        novel_base_directory=args.novel_base_directory,
+        novel_base_directory=novel_base_directory,
         retry_failed_only=args.retry_failed,
         skip_validation=args.skip_validation
     )
@@ -245,10 +258,10 @@ def main():
         formatter_class=argparse.RawTextHelpFormatter
     )
     translate_parser.add_argument(
-        '-n', '--novel-base-dir',
-        dest='novel_base_directory',
+        '-n', '--novel-title',
+        dest='novel_title',
         required=True,
-        help='The base directory of the novel (containing the Raws subdirectory)'
+        help='The title of the novel to translate (must exist in the database).'
     )
     translate_parser.add_argument(
         '-r', '--retry-failed',
@@ -338,8 +351,8 @@ def main():
         print("# Resume scraping an existing novel:")
         print('python tool.py scrape --novel-title "My Awesome Novel"')
         print()
-        print("# Translate scraped chapters:")
-        print('python tool.py translate -n "./Novels/Novel_Title" -p chutes')
+        print("# Translate scraped chapters by title:")
+        print('python tool.py translate -n "My Awesome Novel" -w 2')
         print()
         print("# Convert to EPUB:")
         print('python tool.py convert -f "./Novels/Novel_Title/Novel_Title-English" -o "novel.epub" -t "Novel Title" -a "Author Name"')
@@ -349,7 +362,7 @@ def main():
         print('python tool.py scrape --novel-title "My Novel" --start-url "https://www.69shu.com/book/123.htm" -m 50')
         print('python tool.py scrape --novel-title "My Novel"  # Resume if needed')
         print('python tool.py info -d "./Novels/My_Novel"  # Check progress')
-        print('python tool.py translate -n "./Novels/My_Novel" -p chutes -w 2')
+        print('python tool.py translate -n "My Novel" -w 2')
         print('python tool.py convert -f "./Novels/My_Novel/My_Novel-English" -o "my_novel.epub" -t "My Novel" -a "Author"')
         return
     
