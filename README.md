@@ -5,10 +5,11 @@ A complete Python-based pipeline for scraping, translating, and converting Chine
 ## 🚀 Features
 
 - **Unified Tool Interface**: A single, intuitive `tool.py` for all operations.
+- **MongoDB Progress Tracking**: All scraping and translation progress is stored in a MongoDB database, eliminating local progress files and enabling robust, centralized state management.
 - **Dynamic API Key Management**: Configure all your API keys in a single `secrets.json` file.
 - **Automatic Provider Fallback**: If one API key fails (rate limit, error), the tool automatically tries the next one.
 - **Multi-Website Support**: Scrape chapters from 69shu.com, 1qxs.com, and their variants.
-- **Resilient Scraping & Translation**: Resume scraping or translation from where you left off.
+- **Resilient Scraping & Translation**: Resume scraping or translation by simply providing the novel's title.
 - **Dynamic Chapter Discovery**: The translator automatically detects and processes new `RAW` chapters as you add them ("hot-reloading").
 - **Comprehensive Novel Statistics**: A dedicated `info` command to get a detailed progress report.
 - **Parallel Processing**: Multi-threaded translation for maximum speed.
@@ -34,6 +35,7 @@ The scraper supports multiple Chinese novel websites through specialized extract
 
 - Python 3.8 or higher
 - Pandoc (for EPUB conversion)
+- A running MongoDB instance.
 - API keys for one or more translation services (e.g., OpenRouter, Chutes).
 
 ## 🛠️ Installation
@@ -79,6 +81,11 @@ The scraper supports multiple Chinese novel websites through specialized extract
         ```
     - The `secrets.json` file is included in `.gitignore`, so your keys will not be committed.
 
+5.  **Configure your Environment**:
+    -   This project uses a `.env` file to manage database credentials.
+    -   Copy the example file: `cp .env.example .env`
+    -   Edit the `.env` file with your MongoDB connection details.
+
 ## 🎯 Quick Start
 
 The unified `tool.py` provides five main commands for the complete workflow:
@@ -93,6 +100,7 @@ python tool.py translate --help
 python tool.py convert --help
 python tool.py validate --help
 python tool.py info --help
+python tool.py list --help
 ```
 
 ## 📚 Complete Workflow Example
@@ -107,18 +115,22 @@ python tool.py validate
 # Or, test all keys to see which ones are working
 python tool.py validate --all
 
-# Step 2: Start scraping the first 50 chapters
-python tool.py scrape -n "https://www.69shu.com/book/123.htm" "My Awesome Novel" -m 50
+# Step 2: Start scraping a new novel
+python tool.py scrape --novel-title "My Awesome Novel" --start-url "https://www.69shu.com/book/123.htm" -m 50
 
 # Step 3 (can be run in a separate terminal while scraping):
-# Start translating. It will automatically find new chapters as they are scraped.
-python tool.py translate -n "./Novels/My_Awesome_Novel" -w 4
+# Start translating by title. It will automatically find new chapters as they are scraped.
+python tool.py translate -n "My Awesome Novel" -w 4
 
 # Step 4: Check the progress at any time
+# The info command still operates on the folder path
 python tool.py info -d "./Novels/My_Awesome_Novel"
 
-# Step 5: If scraping was interrupted, resume it
-python tool.py scrape -r "./Novels/My_Awesome_Novel" -m 50
+# You can also list all novels in the database at any time
+python tool.py list
+
+# Step 5: If scraping was interrupted, resume it by providing the title
+python tool.py scrape --novel-title "My Awesome Novel" -m 50
 
 # Step 6: Once everything is translated, create the EPUB
 python tool.py convert -f "./Novels/My_Awesome_Novel/My_Awesome_Novel-English" \
@@ -137,29 +149,29 @@ Tests your API keys configured in `secrets.json`.
 python tool.py validate
 
 # Test all keys
-python tool.py validate -a
+python tool.py validate --all
 ```
 -   **What it checks**:
     -   `secrets.json` exists and is formatted correctly.
     -   Performs a simple API call to test connectivity and authentication for one or all keys.
 
 ### 2. Scrape (`scrape`)
-Scrapes novel chapters from supported websites.
+Scrapes novel chapters from supported websites. Progress is tracked in MongoDB.
 
 ```bash
-# Start a new scrape
-python tool.py scrape -n "URL" "TITLE"
+# Start a new scrape for a novel not yet in the database
+python tool.py scrape --novel-title "TITLE" --start-url "URL"
 
-# Resume a previous scrape from a folder
-python tool.py scrape -r "FOLDER_PATH"
+# Resume scraping for a novel already in the database
+python tool.py scrape --novel-title "TITLE"
 ```
--   `-n, --new-scrape`: Starts a new scrape. Requires the novel's start URL and a title.
--   `-r, --resume`: Resumes a scrape from a novel folder. Automatically finds the progress file.
+-   `--novel-title`: The title of the novel. This is used to uniquely identify the novel in the database for both new scrapes and resuming.
+-   `--start-url`: The starting URL for the scrape. This is **required** for new novels but optional when resuming.
 -   `-m, --max-chapters`: The maximum number of chapters to scrape in this session (default: 1000).
 -   `-o, --output-path`: Custom base directory for output (default: `./Novels`).
 
 ### 3. Info (`info`)
-Displays detailed statistics about a novel's progress.
+Displays detailed statistics about a novel's progress by inspecting its folder.
 
 ```bash
 python tool.py info -d "FOLDER_PATH"
@@ -167,21 +179,30 @@ python tool.py info -d "FOLDER_PATH"
 -   `-d, --novel-dir`: The base directory of the novel.
 -   **What it shows**:
     -   Counts of raw and translated chapter files.
-    -   Detailed progress from the translation log (translated, failed, and untranslated counts).
+    -   **Note**: With the new MongoDB tracking, this command provides a file-system-level view. For precise progress, checking the database is recommended.
 
-### 4. Translate (`translate`)
-Translates raw chapters into English using the keys from `secrets.json`.
+### 4. List (`list`)
+Lists all novels currently tracked in the database.
 
 ```bash
-python tool.py translate -n "FOLDER_PATH" [-r] [-w WORKERS]
+python tool.py list
+```
+- This command provides a quick, numbered list of all novels, making it easy to see what's in your collection and get the correct titles for other commands.
+
+### 5. Translate (`translate`)
+Translates raw chapters into English. Progress is tracked in MongoDB.
+
+```bash
+# Start or resume translating a novel by its title
+python tool.py translate -n "NOVEL_TITLE" [-r] [-w WORKERS]
 ```
 -   **Dynamic Discovery**: This command runs continuously, watching for new raw chapters and translating them as they appear. You can run this at the same time as the scraper.
--   `-n, --novel-base-dir`: The base directory of the novel (must contain a `-Raws` subdirectory).
+-   `-n, --novel-title`: The title of the novel as it exists in the database.
 -   `-w, --workers`: Number of parallel threads to use for translation (default: 1).
 -   `-r, --retry-failed`: In this mode, only chapters that have previously failed will be retried.
 -   `--skip-validation`: Skips the initial API key validation.
 
-### 5. Convert (`convert`)
+### 6. Convert (`convert`)
 Converts a folder of translated markdown files into a single EPUB file.
 
 ```bash
@@ -219,10 +240,10 @@ project-root/
 │       │   ├── Chapter_001.md
 │       │   ├── Chapter_002.md
 │       │   └── ...
-│       ├── Novel_Title_progress.json              # Scraping progress
-│       └── Novel_Title_translation_progress.json  # Translation progress
 ├── secrets.json                   # Your secret API keys (gitignored)
 ├── secrets.example.json           # Example API key file
+├── .env                           # Your environment variables (gitignored)
+├── .env.example                   # Example environment file
 └── scripts/                       # Utility scripts
     └── *.lua                      # Pandoc filters
 ```
@@ -266,6 +287,16 @@ python tool.py validate
 python tool.py validate --all
 ```
 
+### Rate Limiting & Resumption
+-   **Rate Limiting**: Includes built-in delays to avoid being blocked.
+-   **Resumption**: If a scrape is interrupted, you can easily resume it by running the `scrape` command again with the same `--novel-title`. The tool will automatically pick up where it left off based on the progress in MongoDB.
+
+### Translation
+-   **API Key Fallback**: If an API call fails with one key (e.g., rate limit, server error), the system automatically retries the request with the next key in `secrets.json`.
+-   **Failed Chapter Tracking**: Failed attempts are tracked atomically in the `translation_progress` collection in MongoDB.
+-   **Retry Failed Only**: You can run `translate -n "NOVEL_TITLE" -r` to specifically re-process only the chapters that failed previously.
+-   **Dynamic Discovery**: The translator runs in a loop, so if it stops for any reason, you can simply restart it with the same `translate -n "NOVEL_TITLE"` command, and it will find any remaining untranslated chapters.
+
 ## 🚨 Error Handling & Recovery
 
 The pipeline is designed for resilience and easy recovery from common issues.
@@ -273,28 +304,30 @@ The pipeline is designed for resilience and easy recovery from common issues.
 ### Scraping
 -   **SSL Issues**: Automatically bypasses SSL verification for problematic sites.
 -   **Rate Limiting**: Includes built-in delays to avoid being blocked.
--   **Resumption**: If a scrape is interrupted, you can easily resume it using the `scrape -r FOLDER_PATH` command. The tool uses the `_progress.json` file to pick up where it left off.
+-   **Resumption**: If a scrape is interrupted, you can easily resume it by running the `scrape` command again with the same `--novel-title`. The tool will automatically pick up where it left off based on the progress in MongoDB.
 
 ### Translation
 -   **API Key Fallback**: If an API call fails with one key (e.g., rate limit, server error), the system automatically retries the request with the next key in `secrets.json`.
--   **Failed Chapter Tracking**: Failed attempts are tracked in the `_translation_progress.json` file.
--   **Retry Failed Only**: You can run `translate -r` to specifically re-process only the chapters that failed previously.
--   **Dynamic Discovery**: The translator runs in a loop, so if it stops for any reason, you can simply restart it, and it will find any remaining untranslated chapters.
+-   **Failed Chapter Tracking**: Failed attempts are tracked atomically in the `translation_progress` collection in MongoDB.
+-   **Retry Failed Only**: You can run `translate -n "NOVEL_TITLE" -r` to specifically re-process only the chapters that failed previously.
+-   **Dynamic Discovery**: The translator runs in a loop, so if it stops for any reason, you can simply restart it with the same `translate -n "NOVEL_TITLE"` command, and it will find any remaining untranslated chapters.
 
 ## 📖 Advanced Usage
 
 ### Resuming Operations
--   **Scraping**: Resume an interrupted scrape by providing the novel's folder path. The tool finds the progress file automatically.
+With the new MongoDB backend, resuming is the default behavior. Simply run the same command you used to start the process.
+
+-   **Scraping**: Resume an interrupted scrape by providing the novel's title.
     ```bash
-    python tool.py scrape -r "./Novels/My_Awesome_Novel"
+    python tool.py scrape --novel-title "My Awesome Novel"
     ```
--   **Translation**: Translation is now a dynamic process. Simply run the command again, and it will pick up any untranslated chapters. To retry only failed chapters, use the `-r` flag.
+-   **Translation**: Translation is a dynamic process. Simply run the command again, and it will pick up any untranslated chapters based on the database record. To retry only failed chapters, use the `-r` flag.
     ```bash
     # Continue translating any new/pending chapters
-    python tool.py translate -n "./Novels/My_Awesome_Novel"
+    python tool.py translate -n "My Awesome Novel"
 
     # Specifically retry chapters that failed before
-    python tool.py translate -n "./Novels/My_Awesome_Novel" -r
+    python tool.py translate -n "My Awesome Novel" -r
     ```
 
 ### Parallel Processing
@@ -302,7 +335,7 @@ Use the `-w` or `--workers` flag with the `translate` command to speed up transl
 
 ```bash
 # Use 4 worker threads for faster translation
-python tool.py translate -n "./Novels/My_Awesome_Novel" -w 4
+python tool.py translate -n "My Awesome Novel" -w 4
 ```
 **Note**: Be mindful of your API provider's rate limits. Using too many workers can lead to keys being temporarily blocked. The automatic fallback helps, but setting a reasonable number of workers is best.
 

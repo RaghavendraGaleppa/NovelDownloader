@@ -26,6 +26,7 @@ sys.path.append(os.path.join(current_folder, "src"))
 from src.scraping.parse_chapter import main as scrape_main
 from src.translation.translator import translate_novel_chapters, perform_api_validation
 from src.conversion.epub_converter import convert_folder_md_to_epub
+from src.main import db_client
 
 
 def cmd_scrape(args):
@@ -57,11 +58,6 @@ def cmd_translate(args):
     """Handle the translate subcommand"""
     print("🔤 Starting novel translation...")
     
-    # Validate the novel directory exists
-    if not os.path.isdir(args.novel_base_directory):
-        print(f"❌ Error: The provided path '{args.novel_base_directory}' is not a valid directory.")
-        return
-    
     # Import the translate function and create a proper args namespace
     from src.translation.translator import translate_novel_chapters
     
@@ -76,7 +72,7 @@ def cmd_translate(args):
     
     # Call the translation function with the specified parameters
     translate_novel_chapters(
-        novel_base_directory=args.novel_base_directory,
+        novel_title=args.novel_title,
         retry_failed_only=args.retry_failed,
         skip_validation=args.skip_validation
     )
@@ -174,6 +170,30 @@ def cmd_info(args):
     console.print("-" * 60)
 
 
+def cmd_list(args):
+    """Handle the list subcommand"""
+    console = Console()
+    console.print("\n📚 [bold]Listing all novels in the database...[/bold]", style="cyan")
+    
+    novels_collection = db_client["novels"]
+    
+    try:
+        # Fetch all novels, sorting by name for consistency
+        novel_docs = list(novels_collection.find({}, {'novel_name': 1}).sort('novel_name', 1))
+        
+        if not novel_docs:
+            console.print("  No novels found in the database.", style="yellow")
+            return
+            
+        console.print("-" * 40)
+        for i, doc in enumerate(novel_docs, 1):
+            console.print(f"  {i}. {doc['novel_name']}")
+        console.print("-" * 40)
+
+    except Exception as e:
+        console.print(f"❌ Error fetching novels from database: {e}", style="red")
+
+
 def main():
     """Main entry point for the unified tool"""
     parser = argparse.ArgumentParser(
@@ -245,10 +265,10 @@ def main():
         formatter_class=argparse.RawTextHelpFormatter
     )
     translate_parser.add_argument(
-        '-n', '--novel-base-dir',
-        dest='novel_base_directory',
+        '-n', '--novel-title',
+        dest='novel_title',
         required=True,
-        help='The base directory of the novel (containing the Raws subdirectory)'
+        help='The title of the novel to translate (must exist in the database).'
     )
     translate_parser.add_argument(
         '-r', '--retry-failed',
@@ -317,6 +337,15 @@ def main():
     )
     info_parser.set_defaults(func=cmd_info)
     
+    # ===== LIST SUBCOMMAND =====
+    list_parser = subparsers.add_parser(
+        'list',
+        help='List all novels currently tracked in the database',
+        description='Fetches and displays a numbered list of all novel titles from the database.',
+        formatter_class=argparse.RawTextHelpFormatter
+    )
+    list_parser.set_defaults(func=cmd_list)
+    
     # Parse arguments
     args = parser.parse_args()
     
@@ -329,8 +358,11 @@ def main():
         print("# Get info about a novel:")
         print('python tool.py info -d "./Novels/My_Novel"')
         print()
+        print("# List all novels in the database:")
+        print('python tool.py list')
+        print()
         print("# Validate API configuration:")
-        print('python tool.py validate -p chutes')
+        print('python tool.py validate')
         print()
         print("# Scrape a new novel from a URL:")
         print('python tool.py scrape --novel-title "My Awesome Novel" --start-url "https://www.69shu.com/book/123.htm"')
@@ -338,8 +370,8 @@ def main():
         print("# Resume scraping an existing novel:")
         print('python tool.py scrape --novel-title "My Awesome Novel"')
         print()
-        print("# Translate scraped chapters:")
-        print('python tool.py translate -n "./Novels/Novel_Title" -p chutes')
+        print("# Translate scraped chapters by title:")
+        print('python tool.py translate -n "My Awesome Novel" -w 2')
         print()
         print("# Convert to EPUB:")
         print('python tool.py convert -f "./Novels/Novel_Title/Novel_Title-English" -o "novel.epub" -t "Novel Title" -a "Author Name"')
@@ -349,7 +381,8 @@ def main():
         print('python tool.py scrape --novel-title "My Novel" --start-url "https://www.69shu.com/book/123.htm" -m 50')
         print('python tool.py scrape --novel-title "My Novel"  # Resume if needed')
         print('python tool.py info -d "./Novels/My_Novel"  # Check progress')
-        print('python tool.py translate -n "./Novels/My_Novel" -p chutes -w 2')
+        print('python tool.py list  # See all novels in DB')
+        print('python tool.py translate -n "My Novel" -w 2')
         print('python tool.py convert -f "./Novels/My_Novel/My_Novel-English" -o "my_novel.epub" -t "My Novel" -a "Author"')
         return
     
