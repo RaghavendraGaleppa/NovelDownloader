@@ -6,6 +6,9 @@ This script migrates existing novels from the local file system into the MongoDB
 database. It reads each novel's directory, extracts metadata from the
 progress file, and creates corresponding entries in the 'novels' and
 'scraping_progress' collections.
+
+This was created to transition from a file-based progress tracking system
+to a more robust and centralized MongoDB-based system
 """
 
 import os
