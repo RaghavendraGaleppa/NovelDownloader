@@ -10,6 +10,9 @@ from rich.text import Text
 from main import db_client
 from bson.objectid import ObjectId
 from datetime import datetime
+from pymongo.database import Database
+
+from src.utils.db_utils import get_raw_chapter_for_translation
 
 # Create a thread-safe console instance
 console = Console()
@@ -24,6 +27,40 @@ except ImportError:
     TRANSLATION_AVAILABLE = False
     api_providers = {} # Define as empty if import fails
     LOADED_API_KEYS = []
+
+def create_translation_progress_record(db: Database, novel_id: ObjectId, raw_chapter_id: ObjectId, translated_title: str) -> ObjectId:
+    """
+    Creates a record in the translation_progress collection.
+    """
+    record = {
+        "novel_id": novel_id,
+        "raw_chapter_id": raw_chapter_id,
+        "title": translated_title,
+        "pickup_epoch": time.time(),
+        "status": "in_progress"
+    }
+    result = db.translation_progress.insert_one(record)
+    console.print(f"Created translation progress record for raw chapter {raw_chapter_id}", style="green")
+    return result.inserted_id
+
+
+def finalize_translation_record(db: Database, progress_id: ObjectId, status: str, saved_at: str, provider: str, n_tries: int):
+    """
+    Moves the translation record from translation_progress to translated_chapters
+    and updates it with the final status.
+    """
+    progress_record = db.translation_progress.find_one({"_id": progress_id})
+    if progress_record:
+        del progress_record["_id"]  # Remove old ID to allow insertion
+        progress_record["status"] = status
+        progress_record["saved_at"] = saved_at
+        progress_record["end_epoch"] = time.time()
+        progress_record["provider"] = provider
+        progress_record["n_tries"] = n_tries
+
+        db.translated_chapters.insert_one(progress_record)
+        db.translation_progress.delete_one({"_id": progress_id})
+        console.print(f"Finalized translation for progress record {progress_id} with status {status}", style="green" if status == "completed" else "red")
 
 def validate_api_keys() -> tuple[bool, str | None]:
     """
@@ -73,7 +110,7 @@ def test_api_connectivity(test_all: bool = False) -> tuple[bool, str]:
         # This is a simplified, targeted test, not using the full fallback logic.
         try:
             # We are calling a simplified, targeted version of translate for testing
-            result = translate_chinese_to_english(test_message, key_override=key_info)
+            result, _ = translate_chinese_to_english(test_message, key_override=key_info)
             
             if result.startswith("Error:"):
                 console.print(" [bold red]FAILED[/bold red]")
@@ -136,22 +173,22 @@ def extract_chapter_number(filename: str) -> int:
         return int(match.group(1))
     return -1 # Indicates an issue or non-standard filename
 
-def translate(text: str) -> str:
+def translate(text: str) -> tuple[str, str | None]:
     """
     Translates text using the fallback logic from OpenRouter API if available,
     otherwise returns original text (placeholder behavior).
     """
     if TRANSLATION_AVAILABLE:
-        translated_text = translate_chinese_to_english(text)
+        translated_text, provider = translate_chinese_to_english(text)
         
         # Check if the translation itself returned an error string from the API wrapper
         if translated_text.startswith(("Error:", "HTTP error", "Connection error", 
                                        "Timeout error", "An unexpected error", 
                                        "An unforeseen error", "Rate limit exceeded")):
-            return translated_text # Propagate the error message
-        return translated_text
+            return translated_text, provider # Propagate the error message
+        return translated_text, provider
     else:
-        return text # Placeholder behavior
+        return text, None # Placeholder behavior
 
 def _ensure_directory_exists(dir_path: str) -> bool:
     """Ensures the directory exists, creating it if necessary."""
@@ -227,13 +264,13 @@ def _perform_translation_with_timing(raw_content, chapter_filename, status_or_co
     if hasattr(status_or_console, 'update'):
         status_or_console.update(f"Translating {chapter_filename}...")
     
-    translated_content = translate(raw_content)
+    translated_content, provider = translate(raw_content)
     translation_time = time.time() - translation_start
     
     if translated_content.startswith(("Error:", "HTTP error")):
-        return False, translated_content, translation_time, f"Translation API Error: {translated_content}"
+        return False, translated_content, translation_time, f"Translation API Error: {translated_content}", None
     
-    return True, translated_content, translation_time, None
+    return True, translated_content, translation_time, None, provider
 
 def _save_translated_chapter(chapter_filename, translated_content, translated_raws_dir, status_or_console):
     """
@@ -368,7 +405,7 @@ def _process_single_chapter(
                 has_real_translation, info_msg = _determine_translation_context()
                 
                 # Step 5: Perform translation with timing
-                translation_success, translated_content, translation_time, translation_error = _perform_translation_with_timing(
+                translation_success, translated_content, translation_time, translation_error, provider = _perform_translation_with_timing(
                     raw_content, chapter_filename, status
                 )
                 
@@ -423,7 +460,7 @@ def _process_single_chapter(
             has_real_translation, info_msg = _determine_translation_context()
             
             # Step 5: Perform translation with timing
-            translation_success, translated_content, translation_time, translation_error = _perform_translation_with_timing(
+            translation_success, translated_content, translation_time, translation_error, provider = _perform_translation_with_timing(
                 raw_content, chapter_filename, console
             )
             
@@ -785,6 +822,97 @@ def translate_novel_chapters(novel_title: str, retry_failed_only: bool = False, 
         
         console.print(f"\n🎯 Dynamic translation completed! Total chapters processed across all iterations: {total_chapters_processed_this_session}", style="bold green")
         return  # Return here since we already processed everything
+
+def _process_single_chapter_from_db(
+    raw_chapter: dict,
+    db: Database,
+    novel_name: str,
+    max_retries: int = 3,
+):
+    """
+    Processes a single chapter from a raw chapter record from the database.
+    """
+    raw_chapter_id = raw_chapter["_id"]
+    novel_id = raw_chapter["novel_id"]
+    chapter_title = raw_chapter["title"]
+    chapter_content = raw_chapter["content"]
+    n_tries = 0
+    provider = None
+
+    try:
+        # 1. Translate title
+        translated_title, _ = translate(chapter_title)
+        if translated_title.startswith("Error:"):
+            console.print(f"Failed to translate title for chapter {raw_chapter_id}: {translated_title}", style="red")
+            # Decide if we should proceed with original title or fail
+            translated_title = chapter_title # fallback to original title
+
+        # 2. Create progress record
+        progress_id = create_translation_progress_record(db, novel_id, raw_chapter_id, translated_title)
+
+        # 3. Translate content
+        translated_content, provider = translate(chapter_content)
+        n_tries += 1
+        if translated_content.startswith("Error:"):
+            raise Exception(f"Translation failed: {translated_content}")
+
+        # 4. Save translated chapter
+        translation_dir = os.path.join("Novels", novel_name, "Translations")
+        _ensure_directory_exists(translation_dir)
+        
+        # We need a filename. Let's use the translated title.
+        # Sanitize filename
+        safe_filename = "".join(x for x in translated_title if x.isalnum() or x in " ._").rstrip()
+        save_path = os.path.join(translation_dir, f"{safe_filename}.md")
+        
+        with open(save_path, 'w', encoding='utf-8') as f:
+            f.write(f"# {translated_title}\\n\\n{translated_content}")
+
+        # 5. Finalize record
+        finalize_translation_record(db, progress_id, "completed", save_path, provider, n_tries)
+        console.print(f"Successfully translated and saved chapter {raw_chapter_id}", style="green")
+
+    except Exception as e:
+        console.print(f"Error processing chapter {raw_chapter_id}: {e}", style="red")
+        if 'progress_id' in locals():
+            finalize_translation_record(db, progress_id, "failed", "", provider if provider else "N/A", n_tries)
+
+
+def translate_novel_by_id(novel_id: str, workers: int = 1):
+    """
+    Translates a novel using the new database-driven approach.
+    """
+    console.print(f"Starting translation for novel {novel_id} with {workers} workers.", style="bold blue")
+    
+    db = db_client
+    lock = threading.Lock()
+    
+    novel = db.novels.find_one({"_id": ObjectId(novel_id)})
+    if not novel:
+        console.print(f"Novel with id {novel_id} not found.", style="red")
+        return
+
+    novel_name = novel["title"]
+
+    with ThreadPoolExecutor(max_workers=workers) as executor:
+        futures = []
+        while True:
+            raw_chapter = get_raw_chapter_for_translation(db, novel_id, lock)
+            if not raw_chapter:
+                console.print("No more chapters to translate.", style="yellow")
+                break
+            
+            console.print(f"Submitting chapter {raw_chapter['_id']} for translation.", style="dim")
+            futures.append(executor.submit(_process_single_chapter_from_db, raw_chapter, db, novel_name))
+            
+        for future in as_completed(futures):
+            try:
+                future.result()
+            except Exception as e:
+                console.print(f"A worker failed: {e}", style="red")
+
+    console.print(f"Translation finished for novel {novel_id}.", style="bold green")
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(

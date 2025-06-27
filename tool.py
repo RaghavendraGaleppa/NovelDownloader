@@ -24,7 +24,7 @@ sys.path.append(os.path.join(current_folder, "src"))
 
 # Import the main functions from our organized modules
 from src.scraping.parse_chapter import main as scrape_main
-from src.translation.translator import translate_novel_chapters, perform_api_validation
+from src.translation.translator import translate_novel_chapters, perform_api_validation, translate_novel_by_id
 from src.conversion.epub_converter import convert_folder_md_to_epub
 from src.main import db_client
 
@@ -56,26 +56,33 @@ def cmd_validate(args):
 
 def cmd_translate(args):
     """Handle the translate subcommand"""
-    print("🔤 Starting novel translation...")
-    
-    # Import the translate function and create a proper args namespace
-    from src.translation.translator import translate_novel_chapters
-    
-    # Create a mock args object with the workers attribute for compatibility
-    import types
-    mock_args = types.SimpleNamespace()
-    mock_args.workers = args.workers
-    
-    # Set the global args in the translator module so it can access workers
-    import src.translation.translator as translator_module
-    translator_module.args = mock_args
-    
-    # Call the translation function with the specified parameters
-    translate_novel_chapters(
-        novel_title=args.novel_title,
-        retry_failed_only=args.retry_failed,
-        skip_validation=args.skip_validation
-    )
+    if args.novel_id:
+        print("🔤 Starting novel translation using database records...")
+        translate_novel_by_id(
+            novel_id=args.novel_id,
+            workers=args.workers
+        )
+    elif args.novel_title:
+        print("🔤 Starting novel translation using local files...")
+        
+        # Create a mock args object with the workers attribute for compatibility
+        import types
+        mock_args = types.SimpleNamespace()
+        mock_args.workers = args.workers
+        
+        # Set the global args in the translator module so it can access workers
+        import src.translation.translator as translator_module
+        translator_module.args = mock_args
+        
+        # Call the translation function with the specified parameters
+        translate_novel_chapters(
+            novel_title=args.novel_title,
+            retry_failed_only=args.retry_failed,
+            skip_validation=args.skip_validation
+        )
+    else:
+        print("❌ Error: You must provide either --novel-title or --novel-id.", file=sys.stderr)
+        sys.exit(1)
 
 
 def cmd_convert(args):
@@ -260,36 +267,33 @@ def main():
     # ===== TRANSLATE SUBCOMMAND =====
     translate_parser = subparsers.add_parser(
         'translate',
-        help='Translate novel chapters to English',
-        description='Translate raw novel chapters using AI translation APIs',
+        help='Translate novel chapters',
+        description='Translate novel chapters from raw files into English. Can use local files or database records.',
         formatter_class=argparse.RawTextHelpFormatter
     )
     translate_parser.add_argument(
         '-n', '--novel-title',
-        dest='novel_title',
-        required=True,
-        help='The title of the novel to translate (must exist in the database).'
+        help='The title of the novel (used for file-based translation).'
+    )
+    translate_parser.add_argument(
+        '--novel-id',
+        help='The ID of the novel in the database (used for database-driven translation).'
     )
     translate_parser.add_argument(
         '-r', '--retry-failed',
         action='store_true',
-        help='Only attempt to translate chapters that previously failed'
-    )
-    translate_parser.add_argument(
-        '-p', '--provider',
-        default='chutes',
-        help='This argument is now ignored. API providers are determined by secrets.json.'
+        help='(File-based only) Retry only chapters that previously failed translation.'
     )
     translate_parser.add_argument(
         '-w', '--workers',
         type=int,
         default=1,
-        help='Number of worker threads for parallel processing (default: 1)'
+        help='Number of parallel worker threads to use for translation (default: 1).'
     )
     translate_parser.add_argument(
         '--skip-validation',
         action='store_true',
-        help='Skip API validation before starting translation (not recommended)'
+        help='Skip the API key validation and connectivity test before starting.'
     )
     translate_parser.set_defaults(func=cmd_translate)
     

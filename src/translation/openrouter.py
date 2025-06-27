@@ -47,7 +47,7 @@ LOADED_API_KEYS = _load_api_keys()
 
 # --- Core Translation Logic ---
 
-def translate_chinese_to_english(text_to_translate: str, key_override: dict | None = None) -> str:
+def translate_chinese_to_english(text_to_translate: str, key_override: dict | None = None) -> tuple[str, str | None]:
     """
     Translates Chinese text to English using a fallback-enabled system based on keys in secrets.json.
     It will try each key and its associated models until one succeeds.
@@ -57,12 +57,14 @@ def translate_chinese_to_english(text_to_translate: str, key_override: dict | No
         key_override (dict | None): If provided, uses only this key info instead of the full list. For testing.
 
     Returns:
-        str: The translated English text, or an error message if all keys and models fail.
+        tuple[str, str | None]: A tuple containing:
+            - The translated English text, or an error message if all keys and models fail.
+            - The name of the key/provider that succeeded, or None on failure.
     """
     keys_to_use = [key_override] if key_override else LOADED_API_KEYS
 
     if not keys_to_use:
-        return f"Error: No API keys found in {SECRETS_FILE} or the file is missing/invalid."
+        return f"Error: No API keys found in {SECRETS_FILE} or the file is missing/invalid.", None
 
     for i, key_info in enumerate(keys_to_use):
         provider_name = key_info.get("provider")
@@ -102,7 +104,7 @@ def translate_chinese_to_english(text_to_translate: str, key_override: dict | No
                 if response_data and response_data.get("choices"):
                     translated_text = response_data["choices"][0]["message"]["content"].strip()
                     CONSOLE.print(f"✅ Success with [bold cyan]{key_name}[/bold cyan] using model [green]{model_name}[/green].", style="dim")
-                    return translated_text
+                    return translated_text, key_name
                 else:
                     CONSOLE.print(f"⚠️  Warning: No translation found in API response for model {model_name}. Response: {response_data}", style="yellow")
                     continue
@@ -122,7 +124,7 @@ def translate_chinese_to_english(text_to_translate: str, key_override: dict | No
                 CONSOLE.print(f"❌ Unforeseen Error with {provider_name}/{model_name}: {e}", style="red")
                 break # Break from model loop, move to next key
 
-    return "Error: All specified API keys and models failed to provide a translation."
+    return "Error: All specified API keys and models failed to provide a translation.", None
 
 if __name__ == "__main__":
     # --- IMPORTANT ---
@@ -138,8 +140,8 @@ if __name__ == "__main__":
     chinese_text_1 = "你好，世界！这是一个测试翻译。"
     print(f"Original Chinese text: {chinese_text_1}\n")
     print("Translating...")
-    english_translation_1 = translate_chinese_to_english(chinese_text_1)
-    print(f"Translated English text: {english_translation_1}")
+    english_translation_1, provider_1 = translate_chinese_to_english(chinese_text_1)
+    print(f"Translated English text: {english_translation_1} (Provider: {provider_1})")
 
     # Example 2: Specifying OpenRouter as the provider
     # Make sure API_KEY is set to your OpenRouter API key before running this.
@@ -149,14 +151,14 @@ if __name__ == "__main__":
     print("Translating...")
     # Ensure OPENROUTER_API_KEY is set in your environment for this to work
     # Update: Ensure API_KEY is set to your OpenRouter key for this to work
-    english_translation_2 = translate_chinese_to_english(chinese_text_2)
-    print(f"Translated English text: {english_translation_2}")
+    english_translation_2, provider_2 = translate_chinese_to_english(chinese_text_2)
+    print(f"Translated English text: {english_translation_2} (Provider: {provider_2})")
 
     # Example 3: Testing with a non-configured provider
     print("\n\n--- Example 3: Testing non-configured provider ---")
     chinese_text_3 = "这是第三个测试。"
     print(f"Original Chinese text: {chinese_text_3}\n")
     print("Translating...")
-    english_translation_3 = translate_chinese_to_english(chinese_text_3)
-    print(f"Translated English text: {english_translation_3}")
+    english_translation_3, provider_3 = translate_chinese_to_english(chinese_text_3)
+    print(f"Translated English text: {english_translation_3} (Provider: {provider_3})")
 
