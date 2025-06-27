@@ -5,7 +5,7 @@ from pymongo.server_api import ServerApi
 from urllib.parse import quote_plus
 
 # Local Imports
-from ..utils.logging_utils import get_logger
+from utils.logging_utils import get_logger
 
 logger = get_logger()
 
