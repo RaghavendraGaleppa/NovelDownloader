@@ -790,32 +790,28 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Translate raw novel chapters using the dynamic key system."
     )
-    parser.add_argument("-n", "--novel-base-dir", 
-                        dest="novel_base_directory",
-                        required=True, 
-                        help="The base directory of the novel (must contain a 'Raws' subdirectory).")
+    parser.add_argument("-n", "--novel-title",
+                        required=True,
+                        help="The title of the novel to translate (must exist in the database).")
     parser.add_argument("-r", "--retry-failed",
                         action="store_true",
                         help="Only attempt to translate chapters that previously failed.")
-    
+
     parser.add_argument("-w", "--workers",
                         type=int,
                         default=1,
                         help="Number of worker threads for parallel processing (default: 1).")
-    
+
     parser.add_argument("--skip-validation",
                         action="store_true",
                         help="Skip API validation before starting translation (not recommended).")
-    
+
     args = parser.parse_args()
 
-    # No longer need to check for provider or individual API_KEY env var here.
-    # The check is now inside the validation function.
-    if not os.path.isdir(args.novel_base_directory):
-        console.print(f"❌ Error: The provided path '{args.novel_base_directory}' is not a valid directory.", style="red")
-    else:
-        translate_novel_chapters(
-            args.novel_base_directory, 
-            retry_failed_only=args.retry_failed,
-            skip_validation=args.skip_validation
-        ) 
+    # Call the main function with the title. The function itself will handle
+    # looking up paths and other details from the database.
+    translate_novel_chapters(
+        novel_title=args.novel_title,
+        retry_failed_only=args.retry_failed,
+        skip_validation=args.skip_validation
+    ) 
