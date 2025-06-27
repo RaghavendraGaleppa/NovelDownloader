@@ -16,6 +16,11 @@ import sys
 import os
 import json
 from rich.console import Console
+import sys
+
+# Doing this temporarily since I will migrating to server and no more command line tools will be used
+current_folder = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(os.path.join(current_folder, "src"))
 
 # Import the main functions from our organized modules
 from src.scraping.parse_chapter import main as scrape_main
