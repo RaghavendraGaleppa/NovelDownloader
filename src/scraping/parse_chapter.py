@@ -252,6 +252,27 @@ def _save_current_progress(
         {'$set': update_payload}
     )
 
+def _create_raw_chapter_record(
+    novel_id: ObjectId,
+    progress_id: ObjectId,
+    chapter_number: int,
+    title: str,
+    saved_at: str
+):
+    """Creates a record for the scraped chapter in the 'raw_chapters' collection."""
+    raw_chapters_collection = db_client["raw_chapters"]
+    
+    chapter_record = {
+        'novel_id': novel_id,
+        'progress_id': progress_id,
+        'chapter_number': chapter_number,
+        'title': title,
+        'saved_at': saved_at,
+        'created_at': datetime.now()
+    }
+    
+    raw_chapters_collection.insert_one(chapter_record)
+
 def _create_chapter_file(output_dir_path: str, chapter_num_str: str, title: str, paragraphs: list[str]) -> bool:
     """Creates or appends to a markdown file for the given chapter content in the specified output directory."""
     filename = f"Chapter_{chapter_num_str}.md"
@@ -289,6 +310,7 @@ def main(args: argparse.Namespace):
     safe_novel_title_dir_name: str # This is the output_base_dir_name
     output_dir_path: str # For Raws subfolder
     novel_id: ObjectId
+    progress_id: Optional[ObjectId] = None
 
     novel_title = args.novel_title
     start_url_param = args.start_url
@@ -314,6 +336,7 @@ def main(args: argparse.Namespace):
         print(f"Found existing novel '{novel_title}' with ID: {novel_id}. Checking for progress.")
 
         progress_doc = progress_collection.find_one({'novel_id': novel_id})
+        progress_id = progress_doc['_id'] if progress_doc else None
 
         if progress_doc:
             # Resume scrape
@@ -336,14 +359,17 @@ def main(args: argparse.Namespace):
             original_start_url = start_url_param
             current_url = original_start_url
             last_known_chapter_num = None # New scrape starts with no chapter parsed
-            progress_collection.insert_one({
+            progress_record = {
                 'novel_id': novel_id,
                 'original_start_url': original_start_url,
                 'output_base_dir_name': safe_novel_title_dir_name,
                 'last_scraped_url': None,
                 'next_url_to_scrape': current_url,
                 'last_chapter_parsed': None
-            })
+            }
+            inserted_progress = progress_collection.insert_one(progress_record)
+            progress_id = inserted_progress.inserted_id
+
     else:
         # New novel, new scrape
         if not start_url_param:
@@ -366,14 +392,16 @@ def main(args: argparse.Namespace):
         print(f"Added entry for '{novel_title}' to MongoDB with ID: {novel_id}.")
 
         # Insert into scraping_progress collection
-        progress_collection.insert_one({
+        progress_record = {
             'novel_id': novel_id,
             'original_start_url': original_start_url,
             'output_base_dir_name': safe_novel_title_dir_name,
             'last_scraped_url': None,
             'next_url_to_scrape': current_url,
             'last_chapter_parsed': None
-        })
+        }
+        inserted_progress = progress_collection.insert_one(progress_record)
+        progress_id = inserted_progress.inserted_id
         print("Created new progress tracking record.")
 
     # Set final output directory - use custom path if provided, otherwise use Novels/novel_title with novel-specific Raws subfolder
@@ -430,6 +458,16 @@ def main(args: argparse.Namespace):
             
             if _create_chapter_file(output_dir_path, chapter_num_str, title, paragraphs):
                 chapters_saved_this_session += 1
+                
+                if progress_id and last_known_chapter_num is not None:
+                    _create_raw_chapter_record(
+                        novel_id=novel_id,
+                        progress_id=progress_id,
+                        chapter_number=last_known_chapter_num,
+                        title=title,
+                        saved_at=filepath
+                    )
+
                 print("-" * 70) 
                 
                 # Show appropriate message based on whether file existed
