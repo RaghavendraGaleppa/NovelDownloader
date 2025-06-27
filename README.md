@@ -100,6 +100,7 @@ python tool.py translate --help
 python tool.py convert --help
 python tool.py validate --help
 python tool.py info --help
+python tool.py list --help
 ```
 
 ## 📚 Complete Workflow Example
@@ -124,6 +125,9 @@ python tool.py translate -n "My Awesome Novel" -w 4
 # Step 4: Check the progress at any time
 # The info command still operates on the folder path
 python tool.py info -d "./Novels/My_Awesome_Novel"
+
+# You can also list all novels in the database at any time
+python tool.py list
 
 # Step 5: If scraping was interrupted, resume it by providing the title
 python tool.py scrape --novel-title "My Awesome Novel" -m 50
@@ -177,7 +181,15 @@ python tool.py info -d "FOLDER_PATH"
     -   Counts of raw and translated chapter files.
     -   **Note**: With the new MongoDB tracking, this command provides a file-system-level view. For precise progress, checking the database is recommended.
 
-### 4. Translate (`translate`)
+### 4. List (`list`)
+Lists all novels currently tracked in the database.
+
+```bash
+python tool.py list
+```
+- This command provides a quick, numbered list of all novels, making it easy to see what's in your collection and get the correct titles for other commands.
+
+### 5. Translate (`translate`)
 Translates raw chapters into English. Progress is tracked in MongoDB.
 
 ```bash
@@ -190,7 +202,7 @@ python tool.py translate -n "NOVEL_TITLE" [-r] [-w WORKERS]
 -   `-r, --retry-failed`: In this mode, only chapters that have previously failed will be retried.
 -   `--skip-validation`: Skips the initial API key validation.
 
-### 5. Convert (`convert`)
+### 6. Convert (`convert`)
 Converts a folder of translated markdown files into a single EPUB file.
 
 ```bash
@@ -228,8 +240,6 @@ project-root/
 │       │   ├── Chapter_001.md
 │       │   ├── Chapter_002.md
 │       │   └── ...
-│       ├── Novel_Title_progress.json              # Scraping progress
-│       └── Novel_Title_translation_progress.json  # Translation progress
 ├── secrets.json                   # Your secret API keys (gitignored)
 ├── secrets.example.json           # Example API key file
 ├── .env                           # Your environment variables (gitignored)

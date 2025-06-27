@@ -187,6 +187,30 @@ def cmd_info(args):
     console.print("-" * 60)
 
 
+def cmd_list(args):
+    """Handle the list subcommand"""
+    console = Console()
+    console.print("\n📚 [bold]Listing all novels in the database...[/bold]", style="cyan")
+    
+    novels_collection = db_client["novels"]
+    
+    try:
+        # Fetch all novels, sorting by name for consistency
+        novel_docs = list(novels_collection.find({}, {'novel_name': 1}).sort('novel_name', 1))
+        
+        if not novel_docs:
+            console.print("  No novels found in the database.", style="yellow")
+            return
+            
+        console.print("-" * 40)
+        for i, doc in enumerate(novel_docs, 1):
+            console.print(f"  {i}. {doc['novel_name']}")
+        console.print("-" * 40)
+
+    except Exception as e:
+        console.print(f"❌ Error fetching novels from database: {e}", style="red")
+
+
 def main():
     """Main entry point for the unified tool"""
     parser = argparse.ArgumentParser(
@@ -330,6 +354,15 @@ def main():
     )
     info_parser.set_defaults(func=cmd_info)
     
+    # ===== LIST SUBCOMMAND =====
+    list_parser = subparsers.add_parser(
+        'list',
+        help='List all novels currently tracked in the database',
+        description='Fetches and displays a numbered list of all novel titles from the database.',
+        formatter_class=argparse.RawTextHelpFormatter
+    )
+    list_parser.set_defaults(func=cmd_list)
+    
     # Parse arguments
     args = parser.parse_args()
     
@@ -342,8 +375,11 @@ def main():
         print("# Get info about a novel:")
         print('python tool.py info -d "./Novels/My_Novel"')
         print()
+        print("# List all novels in the database:")
+        print('python tool.py list')
+        print()
         print("# Validate API configuration:")
-        print('python tool.py validate -p chutes')
+        print('python tool.py validate')
         print()
         print("# Scrape a new novel from a URL:")
         print('python tool.py scrape --novel-title "My Awesome Novel" --start-url "https://www.69shu.com/book/123.htm"')
@@ -362,6 +398,7 @@ def main():
         print('python tool.py scrape --novel-title "My Novel" --start-url "https://www.69shu.com/book/123.htm" -m 50')
         print('python tool.py scrape --novel-title "My Novel"  # Resume if needed')
         print('python tool.py info -d "./Novels/My_Novel"  # Check progress')
+        print('python tool.py list  # See all novels in DB')
         print('python tool.py translate -n "My Novel" -w 2')
         print('python tool.py convert -f "./Novels/My_Novel/My_Novel-English" -o "my_novel.epub" -t "My Novel" -a "Author"')
         return
