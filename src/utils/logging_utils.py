@@ -1,7 +1,11 @@
+# Standard Package Imports
 import logging
 from logging import getLogger, StreamHandler, Formatter, INFO, DEBUG
 from dotenv import load_dotenv
 import os
+
+
+# NOTE THIS FILE SHOULD NOT IMPORT ANY LOCAL MODULES
 
 load_dotenv()
 

@@ -1,8 +1,11 @@
+# Standard Package Imports
 from pymongo import MongoClient
 from pymongo.database import Database
 from pymongo.server_api import ServerApi
 from urllib.parse import quote_plus
-from utils.logging_utils import get_logger
+
+# Local Imports
+from ..utils.logging_utils import get_logger
 
 logger = get_logger()
 
