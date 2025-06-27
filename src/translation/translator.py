@@ -617,18 +617,16 @@ def _process_chapters(files_to_process, retry_failed_only, progress_data, raws_d
     
     return chapters_processed_this_session
 
-def translate_novel_chapters(novel_base_directory: str, retry_failed_only: bool = False, skip_validation: bool = False):
+def translate_novel_chapters(novel_title: str, retry_failed_only: bool = False, skip_validation: bool = False):
     """
     Processes raw chapter files, translates them using the specified provider, and saves them.
     Maintains progress and can optionally only retry previously failed translations.
     
     Args:
-        novel_base_directory: Base directory containing the novel files
+        novel_title: The title of the novel to be translated.
         retry_failed_only: Whether to only retry previously failed translations
         skip_validation: Whether to skip API validation (default: False, validation runs by default)
     """
-    novel_name_from_dir = os.path.basename(os.path.normpath(novel_base_directory))
-
     # Perform API validation before starting translation (unless skipped)
     if not skip_validation:
         if not perform_api_validation():
@@ -639,6 +637,22 @@ def translate_novel_chapters(novel_base_directory: str, retry_failed_only: bool 
     else:
         console.print("⚠️  API validation skipped as requested.", style="yellow")
 
+    # --- MongoDB Integration for Translation Progress ---
+    novels_collection = db_client["novels"]
+    progress_collection = db_client["translation_progress"]
+
+    # Find the novel in the database to get its ID and path
+    novel_doc = novels_collection.find_one({'novel_name': novel_title})
+    if not novel_doc or 'folder_path' not in novel_doc:
+        console.print(f"❌ Error: Novel '{novel_title}' not found in the database or record is missing a folder path.", style="red")
+        console.print(f"💡 Please make sure you have scraped this novel first using the scrape command.", style="yellow")
+        return
+        
+    novel_id = novel_doc['_id']
+    novel_base_directory = novel_doc['folder_path']
+    # The novel name from the directory might be different (e.g. with underscores), so we derive it for path construction.
+    novel_name_from_dir = os.path.basename(os.path.normpath(novel_base_directory))
+
     raws_dir = os.path.join(novel_base_directory, f"{novel_name_from_dir}-Raws")
     translated_raws_dir = os.path.join(novel_base_directory, f"{novel_name_from_dir}-English")
 
@@ -648,19 +662,6 @@ def translate_novel_chapters(novel_base_directory: str, retry_failed_only: bool 
 
     if not _ensure_directory_exists(translated_raws_dir):
         return
-
-    # --- MongoDB Integration for Translation Progress ---
-    novels_collection = db_client["novels"]
-    progress_collection = db_client["translation_progress"]
-
-    # Find the novel in the database to get its ID
-    novel_doc = novels_collection.find_one({'novel_name': novel_name_from_dir})
-    if not novel_doc:
-        console.print(f"❌ Error: Novel '{novel_name_from_dir}' not found in the database.", style="red")
-        console.print(f"💡 Please make sure you have scraped this novel first using the scrape command.", style="yellow")
-        return
-
-    novel_id = novel_doc['_id']
     
     # Load or create translation progress document
     progress_doc = progress_collection.find_one({'novel_id': novel_id})
@@ -689,7 +690,7 @@ def translate_novel_chapters(novel_base_directory: str, retry_failed_only: bool 
         console.print(f"📄 No translation progress found in MongoDB. Starting new translation process for '{novel_name_from_dir}'.", style="blue")
         progress_data = {
             "novel_id": novel_id,
-            "novel_title": novel_name_from_dir,
+            "novel_title": novel_title,
             "last_used_provider": "dynamic (see secrets.json)",
             "translated_files": {}, # Use a dictionary now
             "failed_translation_attempts": {}

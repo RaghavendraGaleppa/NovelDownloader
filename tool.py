@@ -17,7 +17,6 @@ import os
 import json
 from rich.console import Console
 import sys
-from main import db_client
 
 # Doing this temporarily since I will migrating to server and no more command line tools will be used
 current_folder = os.path.dirname(os.path.abspath(__file__))
@@ -27,6 +26,7 @@ sys.path.append(os.path.join(current_folder, "src"))
 from src.scraping.parse_chapter import main as scrape_main
 from src.translation.translator import translate_novel_chapters, perform_api_validation
 from src.conversion.epub_converter import convert_folder_md_to_epub
+from src.main import db_client
 
 
 def cmd_scrape(args):
@@ -58,23 +58,6 @@ def cmd_translate(args):
     """Handle the translate subcommand"""
     print("🔤 Starting novel translation...")
     
-    # --- Look up novel directory from DB ---
-    novels_collection = db_client["novels"]
-    novel_doc = novels_collection.find_one({'novel_name': args.novel_title})
-
-    if not novel_doc or 'folder_path' not in novel_doc:
-        print(f"❌ Error: Novel '{args.novel_title}' not found in database or record is missing a folder path.")
-        print("💡 Please scrape the novel first or ensure the database record is correct.")
-        return
-        
-    novel_base_directory = novel_doc['folder_path']
-    print(f"📂 Found novel directory: {novel_base_directory}")
-    
-    # Validate the novel directory exists on the filesystem
-    if not os.path.isdir(novel_base_directory):
-        print(f"❌ Error: The directory '{novel_base_directory}' from the database does not exist.")
-        return
-    
     # Import the translate function and create a proper args namespace
     from src.translation.translator import translate_novel_chapters
     
@@ -89,7 +72,7 @@ def cmd_translate(args):
     
     # Call the translation function with the specified parameters
     translate_novel_chapters(
-        novel_base_directory=novel_base_directory,
+        novel_title=args.novel_title,
         retry_failed_only=args.retry_failed,
         skip_validation=args.skip_validation
     )
