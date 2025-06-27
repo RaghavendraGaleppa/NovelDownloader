@@ -24,7 +24,7 @@ sys.path.append(os.path.join(current_folder, "src"))
 
 # Import the main functions from our organized modules
 from src.scraping.parse_chapter import main as scrape_main
-from src.translation.translator import translate_novel_chapters, perform_api_validation, translate_novel_by_id
+from src.translation.translator import perform_api_validation, translate_novel_by_id
 from src.conversion.epub_converter import convert_folder_md_to_epub
 from src.main import db_client
 
@@ -61,7 +61,7 @@ def cmd_translate(args):
         sys.exit(1)
 
     print(f"🔤 Looking up novel '{args.novel_title}' in the database...")
-    novel = db_client.novels.find_one({"title": args.novel_title})
+    novel = db_client.novels.find_one({"novel_name": args.novel_title})
 
     if not novel:
         print(f"❌ Error: Novel '{args.novel_title}' not found in the database.", file=sys.stderr)
@@ -72,7 +72,8 @@ def cmd_translate(args):
 
     translate_novel_by_id(
         novel_id=novel_id,
-        workers=args.workers
+        workers=args.workers,
+        skip_validation=args.skip_validation 
     )
 
 
@@ -272,6 +273,12 @@ def main():
         type=int,
         default=1,
         help='Number of parallel worker threads to use for translation (default: 1).'
+    )
+    translate_parser.add_argument(
+        "-sv", "--skip-validation",
+        action="store_true",
+        default=False,
+        help="Skip API validation and use the last used provider."
     )
     translate_parser.set_defaults(func=cmd_translate)
     

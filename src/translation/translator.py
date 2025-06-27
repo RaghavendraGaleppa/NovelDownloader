@@ -1,4 +1,5 @@
 import os
+import traceback
 import re
 import json
 import argparse
@@ -12,7 +13,6 @@ from bson.objectid import ObjectId
 from datetime import datetime
 from pymongo.database import Database
 
-from src.utils.db_utils import get_raw_chapter_for_translation
 
 # Create a thread-safe console instance
 console = Console()
@@ -74,41 +74,72 @@ def _process_single_chapter_from_db(
     raw_chapter_id = raw_chapter["_id"]
     novel_id = raw_chapter["novel_id"]
     chapter_title = raw_chapter["title"]
-    chapter_content = raw_chapter["content"]
-    n_tries = 1  # Start with 1 try
+    try:
+        with open(raw_chapter["saved_at"], 'r', encoding='utf-8') as f:
+            chapter_content = f.read()
+    except Exception as e:
+        console.print(f"Error reading raw chapter file {raw_chapter['saved_at']}: {e}", style="red")
+        raise
     provider = None
 
-    # Create the record in translated_chapters first to mark it as in-progress
-    initial_record = {
-        "novel_id": novel_id,
-        "raw_chapter_id": raw_chapter_id,
-        "title": "pending translation",
-        "pickup_epoch": time.time(),
-        "status": "in_progress",
-        "n_tries": n_tries
-    }
-    result = db.translated_chapters.insert_one(initial_record)
-    record_id = result.inserted_id
+    # Check for existing translation record to resume/retry
+    existing_translation = db.translated_chapters.find_one({"raw_chapter_id": raw_chapter_id})
+
+    if existing_translation:
+        record_id = existing_translation["_id"]
+        n_tries = existing_translation.get("n_tries", 0) + 1
+        db.translated_chapters.update_one(
+            {"_id": record_id},
+            {
+                "$set": {
+                    "status": "in_progress",
+                    "pickup_epoch": time.time(),
+                    "n_tries": n_tries,
+                },
+                "$unset": {"end_epoch": "", "provider": ""}  # Clear old failure data
+            }
+        )
+    else:
+        n_tries = 1
+        # Create the record in translated_chapters first to mark it as in-progress
+        initial_record = {
+            "novel_id": novel_id,
+            "raw_chapter_id": raw_chapter_id,
+            "title": None,
+            "pickup_epoch": time.time(),
+            "status": "in_progress",
+            "n_tries": n_tries
+        }
+        result = db.translated_chapters.insert_one(initial_record)
+        record_id = result.inserted_id
 
     try:
-        # 1. Translate title
-        translated_title, _ = translate(chapter_title)
-        if translated_title.startswith("Error:"):
-            console.print(f"Failed to translate title for chapter {raw_chapter_id}: {translated_title}", style="red")
-            translated_title = chapter_title  # fallback to original title
-
-        # 2. Translate content
+        # 1. Translate content
         translated_content, provider = translate(chapter_content)
         if translated_content.startswith("Error:"):
             raise Exception(f"Translation failed: {translated_content}")
 
+        # 2. Extract title from content
+        lines = translated_content.splitlines()
+        translated_title = lines[0] if lines else raw_chapter["title"]
+        if translated_title.startswith("#"):
+            translated_title = translated_title.lstrip("# ").strip()
+
         # 3. Save translated chapter
         translation_dir = os.path.join("Novels", novel_name, "Translations")
         _ensure_directory_exists(translation_dir)
-        safe_filename = "".join(x for x in translated_title if x.isalnum() or x in " ._").rstrip()
+        
+        chapter_number = raw_chapter.get("chapter_number")
+        if chapter_number is None:
+            # Fallback for old records that might not have chapter_number
+            safe_filename = "".join(x for x in translated_title if x.isalnum() or x in " ._").rstrip()
+            safe_filename = safe_filename[:100] # Truncate to be safe
+        else:
+            safe_filename = f"Chapter_{chapter_number:05d}"
+        
         save_path = os.path.join(translation_dir, f"{safe_filename}.md")
         with open(save_path, 'w', encoding='utf-8') as f:
-            f.write(f"# {translated_title}\\n\\n{translated_content}")
+            f.write(translated_content)
 
         # 4. Finalize record on success
         db.translated_chapters.update_one(
@@ -138,11 +169,11 @@ def _process_single_chapter_from_db(
         raise e  # Re-raise the exception to be caught by the main loop
 
 
-def translate_novel_by_id(novel_id: str, workers: int = 1):
+def translate_novel_by_id(novel_id: str, workers: int = 1, skip_validation: bool = False):
     """
     Translates a novel using the new database-driven approach.
     """
-    if not perform_api_validation():
+    if not skip_validation and not perform_api_validation():
         return
 
     console.print(f"Starting translation for novel {novel_id} with {workers} workers.", style="bold blue")
@@ -153,7 +184,7 @@ def translate_novel_by_id(novel_id: str, workers: int = 1):
     if not novel:
         console.print(f"Novel with id {novel_id} not found.", style="red")
         return
-    novel_name = novel["title"]
+    novel_name = novel["novel_name"]
 
     # 1. Get all raw chapter IDs for this novel
     all_raw_chapter_docs = list(db.raw_chapters.find({"novel_id": novel_object_id}, {"_id": 1}))
@@ -202,6 +233,8 @@ def translate_novel_by_id(novel_id: str, workers: int = 1):
                 future.result()
             except Exception as e:
                 console.print(f"A worker failed while processing a chapter: {e}", style="red")
+                # Print traceback
+                traceback.print_exc()
 
     console.print(f"Translation finished for novel {novel_id}.", style="bold green")
 
@@ -345,10 +378,6 @@ if __name__ == "__main__":
     parser.add_argument("-n", "--novel-title",
                         required=True,
                         help="The title of the novel to translate (must exist in the database).")
-    parser.add_argument("-r", "--retry-failed",
-                        action="store_true",
-                        help="Only attempt to translate chapters that previously failed.")
-
     parser.add_argument("-w", "--workers",
                         type=int,
                         default=1,
@@ -360,10 +389,14 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    # Call the main function with the title. The function itself will handle
-    # looking up paths and other details from the database.
-    translate_novel_chapters(
-        novel_title=args.novel_title,
-        retry_failed_only=args.retry_failed,
-        skip_validation=args.skip_validation
-    ) 
+    # Find novel_id from title
+    novel = db_client.novels.find_one({"novel_name": args.novel_title})
+    if not novel:
+        console.print(f"Novel with title '{args.novel_title}' not found.", style="red")
+    else:
+        novel_id = str(novel["_id"])
+        translate_novel_by_id(
+            novel_id=novel_id,
+            workers=args.workers,
+            skip_validation=args.skip_validation
+        ) 
