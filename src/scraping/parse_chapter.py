@@ -235,16 +235,21 @@ def _ensure_output_directory(dir_path: str) -> bool:
 def _save_current_progress(
     novel_id: ObjectId, 
     processed_url: str | None, # URL of the chapter just processed
-    next_url_to_process: str | None
+    next_url_to_process: str | None,
+    last_chapter_parsed_num: Optional[int]
 ):
     """Saves the current scraping progress to MongoDB."""
     progress_collection = db_client["scraping_progress"]
+    
+    update_payload = {
+        'last_scraped_url': processed_url,
+        'next_url_to_scrape': next_url_to_process,
+        'last_chapter_parsed': last_chapter_parsed_num
+    }
+    
     progress_collection.update_one(
         {'novel_id': novel_id},
-        {'$set': {
-            'last_scraped_url': processed_url,
-            'next_url_to_scrape': next_url_to_process
-        }}
+        {'$set': update_payload}
     )
 
 def _create_chapter_file(output_dir_path: str, chapter_num_str: str, title: str, paragraphs: list[str]) -> bool:
@@ -315,6 +320,8 @@ def main(args: argparse.Namespace):
             original_start_url = progress_doc['original_start_url']
             safe_novel_title_dir_name = progress_doc['output_base_dir_name']
             current_url = progress_doc.get('next_url_to_scrape')
+            # Initialize last known chapter from existing record
+            last_known_chapter_num = progress_doc.get('last_chapter_parsed')
             print(f"Resuming scrape for '{novel_title}'.")
             if current_url is None:
                 print("Progress data indicates task was already completed.")
@@ -328,12 +335,14 @@ def main(args: argparse.Namespace):
             print(f"No active progress found for '{novel_title}'. Starting new scraping session from {start_url_param}.")
             original_start_url = start_url_param
             current_url = original_start_url
+            last_known_chapter_num = None # New scrape starts with no chapter parsed
             progress_collection.insert_one({
                 'novel_id': novel_id,
                 'original_start_url': original_start_url,
                 'output_base_dir_name': safe_novel_title_dir_name,
                 'last_scraped_url': None,
-                'next_url_to_scrape': current_url
+                'next_url_to_scrape': current_url,
+                'last_chapter_parsed': None
             })
     else:
         # New novel, new scrape
@@ -344,6 +353,7 @@ def main(args: argparse.Namespace):
         print(f"Starting new scrape for '{novel_title}' from URL: {start_url_param}")
         original_start_url = start_url_param
         current_url = original_start_url
+        last_known_chapter_num = None # New scrape starts with no chapter parsed
 
         absolute_folder_path = os.path.abspath(base_output_dir)
         novel_document = {
@@ -361,7 +371,8 @@ def main(args: argparse.Namespace):
             'original_start_url': original_start_url,
             'output_base_dir_name': safe_novel_title_dir_name,
             'last_scraped_url': None,
-            'next_url_to_scrape': current_url
+            'next_url_to_scrape': current_url,
+            'last_chapter_parsed': None
         })
         print("Created new progress tracking record.")
 
@@ -400,9 +411,17 @@ def main(args: argparse.Namespace):
             # Progress not saved for this failed attempt, will retry current_url next time
             break
 
+        # Logic to update chapter number
+        current_chapter_num_to_save = last_known_chapter_num
+        if chapter_num_str:
+            match = re.search(r'^\d+', chapter_num_str)
+            if match:
+                current_chapter_num_to_save = int(match.group(0))
+        last_known_chapter_num = current_chapter_num_to_save
+
         if not chapter_num_str:
             print(f"Warning: Could not determine chapter number for URL {current_url} (Title: \"{title}\"). Skipping save.")
-            _save_current_progress(novel_id, current_url, next_url_from_scraper)
+            _save_current_progress(novel_id, current_url, next_url_from_scraper, last_known_chapter_num)
             print(f"Progress updated to skip {current_url}.")
         else:
             # Check if file exists before creation to determine action
@@ -417,7 +436,7 @@ def main(args: argparse.Namespace):
                 file_action = "Appended to existing" if file_existed else "Successfully saved new"
                 print(f"{file_action}: {filepath} (Session total: {chapters_saved_this_session})")
                 
-                _save_current_progress(novel_id, current_url, next_url_from_scraper)
+                _save_current_progress(novel_id, current_url, next_url_from_scraper, last_known_chapter_num)
 
                 if not next_url_from_scraper:
                     print("Successfully processed the last available chapter for this novel.")
