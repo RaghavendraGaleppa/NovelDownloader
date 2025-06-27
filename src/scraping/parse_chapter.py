@@ -11,6 +11,8 @@ import urllib3
 from src.scraping.extraction_backends import ExtractionBackend, EB69Shu, EB1QXS
 from urllib.parse import urlparse
 from typing import Optional
+from datetime import datetime
+from main import db_client
 
 # Disable SSL warnings
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -364,6 +366,23 @@ def main(args: argparse.Namespace):
                 _save_current_progress(progress_file_path, novel_title, original_start_url, base_output_dir, None, current_url)
         else:
             print(f"Starting new scrape for '{novel_title}' from URL: {original_start_url}")
+            
+            # --- MongoDB integration for new novel ---
+            novels_collection = db_client["novels"]
+                
+            # Check if novel already exists before adding
+            if novels_collection.count_documents({'novel_name': novel_title}, limit=1) == 0:
+                absolute_folder_path = os.path.abspath(base_output_dir)
+                novel_document = {
+                    'novel_name': novel_title,
+                    'added_datetime': datetime.now(),
+                    'folder_path': absolute_folder_path
+                }
+                novels_collection.insert_one(novel_document)
+                print(f"Added entry for '{novel_title}' to MongoDB.")
+            else:
+                print(f"Novel '{novel_title}' already exists in MongoDB, skipping entry creation.")
+
             current_url = original_start_url
             # Save initial progress state for a brand new scrape
             _save_current_progress(progress_file_path, novel_title, original_start_url, base_output_dir, None, current_url)
