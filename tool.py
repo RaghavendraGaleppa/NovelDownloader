@@ -216,12 +216,12 @@ def main():
     )
     
     scrape_parser.add_argument(
-        '--novel-title',
+        "-n", '--novel-title',
         required=True,
         help='Title of the novel. Used to identify the novel in the database for new scrapes or resuming.'
     )
     scrape_parser.add_argument(
-        '--start-url',
+        "-s", '--start-url',
         help='The starting URL for a scrape. Required only for new novels not yet in the database.'
     )
     
