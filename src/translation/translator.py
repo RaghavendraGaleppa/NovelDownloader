@@ -66,14 +66,14 @@ def finalize_translation_record(db: Database, progress_id: ObjectId, status: str
 def _process_single_chapter_from_db(
     raw_chapter: dict,
     db: Database,
-    novel_name: str,
+    novel_folder_path: str,
 ):
     """
     Processes a single chapter from a raw chapter record from the database.
     """
     raw_chapter_id = raw_chapter["_id"]
+    console.print(f"Processing chapter {raw_chapter_id} for translation.", style="dim")
     novel_id = raw_chapter["novel_id"]
-    chapter_title = raw_chapter["title"]
     try:
         with open(raw_chapter["saved_at"], 'r', encoding='utf-8') as f:
             chapter_content = f.read()
@@ -84,6 +84,8 @@ def _process_single_chapter_from_db(
 
     # Check for existing translation record to resume/retry
     existing_translation = db.translated_chapters.find_one({"raw_chapter_id": raw_chapter_id})
+    
+    current_pickup_epoch = time.time()
 
     if existing_translation:
         record_id = existing_translation["_id"]
@@ -93,10 +95,10 @@ def _process_single_chapter_from_db(
             {
                 "$set": {
                     "status": "in_progress",
-                    "pickup_epoch": time.time(),
+                    "pickup_epoch": current_pickup_epoch,
                     "n_tries": n_tries,
                 },
-                "$unset": {"end_epoch": "", "provider": ""}  # Clear old failure data
+                "$unset": {"end_epoch": "", "provider": "", "time_taken_epoch": ""}  # Clear old data
             }
         )
     else:
@@ -106,7 +108,7 @@ def _process_single_chapter_from_db(
             "novel_id": novel_id,
             "raw_chapter_id": raw_chapter_id,
             "title": None,
-            "pickup_epoch": time.time(),
+            "pickup_epoch": current_pickup_epoch,
             "status": "in_progress",
             "n_tries": n_tries
         }
@@ -126,7 +128,7 @@ def _process_single_chapter_from_db(
             translated_title = translated_title.lstrip("# ").strip()
 
         # 3. Save translated chapter
-        translation_dir = os.path.join("Novels", novel_name, "Translations")
+        translation_dir = os.path.join(novel_folder_path, "Translations")
         _ensure_directory_exists(translation_dir)
         
         chapter_number = raw_chapter.get("chapter_number")
@@ -142,14 +144,16 @@ def _process_single_chapter_from_db(
             f.write(translated_content)
 
         # 4. Finalize record on success
+        current_end_epoch = time.time()
         db.translated_chapters.update_one(
             {"_id": record_id},
             {"$set": {
                 "status": "completed",
                 "title": translated_title,
                 "saved_at": save_path,
-                "end_epoch": time.time(),
-                "provider": provider
+                "end_epoch": current_end_epoch,
+                "provider": provider,
+                "time_taken_epoch": current_end_epoch - current_pickup_epoch
             }}
         )
         # Update the main progress document
@@ -162,9 +166,10 @@ def _process_single_chapter_from_db(
     except Exception as e:
         console.print(f"Error processing chapter {raw_chapter_id}: {e}", style="red")
         # Finalize record on failure
+        current_end_epoch = time.time()
         db.translated_chapters.update_one(
             {"_id": record_id},
-            {"$set": {"status": "failed", "end_epoch": time.time(), "provider": provider if provider else "N/A"}}
+            {"$set": {"status": "failed", "end_epoch": current_end_epoch, "provider": provider if provider else "N/A", "time_taken_epoch": current_end_epoch - current_pickup_epoch}}
         )
         raise e  # Re-raise the exception to be caught by the main loop
 
@@ -176,7 +181,6 @@ def translate_novel_by_id(novel_id: str, workers: int = 1, skip_validation: bool
     if not skip_validation and not perform_api_validation():
         return
 
-    console.print(f"Starting translation for novel {novel_id} with {workers} workers.", style="bold blue")
     db = db_client
     novel_object_id = ObjectId(novel_id)
 
@@ -184,7 +188,14 @@ def translate_novel_by_id(novel_id: str, workers: int = 1, skip_validation: bool
     if not novel:
         console.print(f"Novel with id {novel_id} not found.", style="red")
         return
+
+    novel_folder_path = novel.get("folder_path")
+    if not novel_folder_path:
+        console.print(f"Novel with id {novel_id} is missing the 'folder_path' attribute. Cannot determine where to save translations.", style="red")
+        return
+
     novel_name = novel["novel_name"]
+    console.print(f"Starting translation for novel '{novel_name}' ({novel_id}) with {workers} workers.", style="bold blue")
 
     # 1. Get all raw chapter IDs for this novel
     all_raw_chapter_docs = list(db.raw_chapters.find({"novel_id": novel_object_id}, {"_id": 1}))
@@ -225,8 +236,7 @@ def translate_novel_by_id(novel_id: str, workers: int = 1, skip_validation: bool
         for chapter_id in chapters_to_process_ids:
             raw_chapter_doc = db.raw_chapters.find_one({"_id": ObjectId(chapter_id)})
             if raw_chapter_doc:
-                console.print(f"Submitting chapter {chapter_id} for translation.", style="dim")
-                futures.append(executor.submit(_process_single_chapter_from_db, raw_chapter_doc, db, novel_name))
+                futures.append(executor.submit(_process_single_chapter_from_db, raw_chapter_doc, db, novel_folder_path))
 
         for future in as_completed(futures):
             try:
