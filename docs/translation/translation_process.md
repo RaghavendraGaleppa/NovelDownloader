@@ -38,15 +38,16 @@ Two main collections are used to manage the translation process:
 1.  **Initiation**: The process is started via `python tool.py translate --novel-title "Novel Name"`. The tool looks up the novel's ID from the `novels` collection.
 
 2.  **Chapter Selection**:
-    *   The system fetches all `_id`s from the `raw_chapters` collection for the given `novel_id`.
+    *   The system fetches all `_id`s from the `raw_chapters` collection for the given `novel_id`, **sorted chronologically** by `_id` (from oldest to newest). This ensures that earlier chapters are translated before later ones.
     *   It then finds all `raw_chapter_id`s in the `translated_chapters` collection that are marked with a `status` of `"completed"`.
-    *   By finding the difference, it creates a list of chapters that still need to be translated.
+    *   By finding the difference, it creates an ordered list of chapters that still need to be translated.
 
 3.  **Execution**:
     *   A `ThreadPoolExecutor` is used to process chapters in parallel, based on the `--workers` argument.
     *   For each chapter to be translated, the `_process_single_chapter_from_db` function is called.
 
 4.  **Single Chapter Processing**:
+    *   **Logging**: A message is printed to the console indicating which chapter is being processed, including both its `ObjectId` and its `chapter_number` for better traceability.
     *   **Resume/Retry Logic**: The system first checks if a record for the `raw_chapter_id` already exists in `translated_chapters`.
         *   If it exists (indicating a previously failed attempt), it updates the record's status to `in_progress` and increments the `n_tries` counter.
         *   If it does not exist, a new record is created with a status of `in_progress`.
