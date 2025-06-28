@@ -22,6 +22,7 @@ class TranslatedChapterSerializer(BaseModel):
     id: ObjectId = Field(alias="_id", serialization_alias="id")
     novel_id: ObjectId = Field(serialization_alias="novel_id")
     raw_chapter_id: ObjectId = Field(exclude=True)
+    chapter_number: int = Field(serialization_alias="chapter_number")
     title: str = Field(serialization_alias="title")
     pickup_epoch: float = Field(exclude=True)
     status: str = Field(exclude=True)
