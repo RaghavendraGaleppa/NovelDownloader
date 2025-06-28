@@ -286,6 +286,18 @@ def _upsert_raw_chapter_record(
         upsert=True
     )
 
+def _update_novel_raw_chapters_available(
+    novel_id: ObjectId,
+    chapter_number: int
+):
+    """Updates the 'raw_chapters_available' field in the 'novels' collection."""
+    novels_collection = db_client["novels"]
+    
+    novels_collection.update_one(
+        {'_id': novel_id},
+        {'$set': {'raw_chapters_available': chapter_number}}
+    )
+
 def _create_chapter_file(output_dir_path: str, chapter_num_str: str, title: str, paragraphs: list[str]) -> bool:
     """Creates or appends to a markdown file for the given chapter content in the specified output directory."""
     filename = f"Chapter_{chapter_num_str}.md"
@@ -494,6 +506,10 @@ def main(args: argparse.Namespace):
                         chapter_number=last_known_chapter_num,
                         title=title,
                         saved_at=filepath
+                    )
+                    _update_novel_raw_chapters_available(
+                        novel_id=novel_id,
+                        chapter_number=last_known_chapter_num
                     )
 
                 print("-" * 70) 
