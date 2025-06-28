@@ -1,0 +1,8 @@
+---
+description: Implementing Feature design
+globs: 
+alwaysApply: false
+---
+Whenever you are tasked with implementing a feature from the feature_design folder, always follow below guidelines:
+1. Whatever changes you make, never use git commands other than for the diff
+2. Every feature design should be broken down into multiple steps as many as possible to ensure that the agent is working on small chunk of work/single function at a time. This will help to keep the code modular and also ensure that the agent does not halucinate

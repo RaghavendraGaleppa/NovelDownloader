@@ -24,7 +24,7 @@ sys.path.append(os.path.join(current_folder, "src"))
 
 # Import the main functions from our organized modules
 from src.scraping.parse_chapter import main as scrape_main
-from src.translation.translator import translate_novel_chapters, perform_api_validation
+from src.translation.translator import perform_api_validation, translate_novel_by_id
 from src.conversion.epub_converter import convert_folder_md_to_epub
 from src.main import db_client
 
@@ -56,25 +56,24 @@ def cmd_validate(args):
 
 def cmd_translate(args):
     """Handle the translate subcommand"""
-    print("🔤 Starting novel translation...")
-    
-    # Import the translate function and create a proper args namespace
-    from src.translation.translator import translate_novel_chapters
-    
-    # Create a mock args object with the workers attribute for compatibility
-    import types
-    mock_args = types.SimpleNamespace()
-    mock_args.workers = args.workers
-    
-    # Set the global args in the translator module so it can access workers
-    import src.translation.translator as translator_module
-    translator_module.args = mock_args
-    
-    # Call the translation function with the specified parameters
-    translate_novel_chapters(
-        novel_title=args.novel_title,
-        retry_failed_only=args.retry_failed,
-        skip_validation=args.skip_validation
+    if not args.novel_title:
+        print("❌ Error: You must provide --novel-title.", file=sys.stderr)
+        sys.exit(1)
+
+    print(f"🔤 Looking up novel '{args.novel_title}' in the database...")
+    novel = db_client.novels.find_one({"novel_name": args.novel_title})
+
+    if not novel:
+        print(f"❌ Error: Novel '{args.novel_title}' not found in the database.", file=sys.stderr)
+        sys.exit(1)
+
+    novel_id = str(novel["_id"])
+    print(f"✅ Found novel with ID: {novel_id}. Starting translation using database records...")
+
+    translate_novel_by_id(
+        novel_id=novel_id,
+        workers=args.workers,
+        skip_validation=args.skip_validation 
     )
 
 
@@ -260,36 +259,26 @@ def main():
     # ===== TRANSLATE SUBCOMMAND =====
     translate_parser = subparsers.add_parser(
         'translate',
-        help='Translate novel chapters to English',
-        description='Translate raw novel chapters using AI translation APIs',
+        help='Translate novel chapters using database records',
+        description='Translate novel chapters from the raw_chapters collection into English.',
         formatter_class=argparse.RawTextHelpFormatter
     )
     translate_parser.add_argument(
         '-n', '--novel-title',
-        dest='novel_title',
         required=True,
         help='The title of the novel to translate (must exist in the database).'
-    )
-    translate_parser.add_argument(
-        '-r', '--retry-failed',
-        action='store_true',
-        help='Only attempt to translate chapters that previously failed'
-    )
-    translate_parser.add_argument(
-        '-p', '--provider',
-        default='chutes',
-        help='This argument is now ignored. API providers are determined by secrets.json.'
     )
     translate_parser.add_argument(
         '-w', '--workers',
         type=int,
         default=1,
-        help='Number of worker threads for parallel processing (default: 1)'
+        help='Number of parallel worker threads to use for translation (default: 1).'
     )
     translate_parser.add_argument(
-        '--skip-validation',
-        action='store_true',
-        help='Skip API validation before starting translation (not recommended)'
+        "-sv", "--skip-validation",
+        action="store_true",
+        default=False,
+        help="Skip API validation and use the last used provider."
     )
     translate_parser.set_defaults(func=cmd_translate)
     
