@@ -63,6 +63,37 @@ def finalize_translation_record(db: Database, progress_id: ObjectId, status: str
         console.print(f"Finalized translation for progress record {progress_id} with status {status}", style="green" if status == "completed" else "red")
 
 
+def _update_novel_translated_chapters_available(db: Database, novel_id: ObjectId):
+    """
+    Checks for the highest consecutive translated chapter and updates the novel record.
+    This version fetches all completed chapter numbers and processes them to find the
+    highest consecutive number from chapter 1.
+    """
+    novel_doc = db.novels.find_one({"_id": novel_id}, {"translated_chapters_available": 1})
+    last_consecutive = novel_doc.get("translated_chapters_available", 0)
+
+    # Fetch all successfully translated chapter numbers for the novel
+    completed_chapters_cursor = db.translated_chapters.find(
+        {"novel_id": novel_id, "status": "completed", "chapter_number": {"$ne": None}},
+        {"chapter_number": 1, "_id": 0}
+    )
+    
+    completed_numbers = {c["chapter_number"] for c in completed_chapters_cursor}
+    
+    current_consecutive = 0
+    # Starting from chapter 1, check for consecutiveness
+    while (current_consecutive + 1) in completed_numbers:
+        current_consecutive += 1
+            
+    # If we found a new highest consecutive chapter, update the novel document.
+    if current_consecutive > last_consecutive:
+        db.novels.update_one(
+            {"_id": novel_id},
+            {"$set": {"translated_chapters_available": current_consecutive}}
+        )
+        console.print(f"Updated 'translated_chapters_available' for novel {novel_id} to {current_consecutive}", style="dim")
+
+
 def _process_single_chapter_from_db(
     raw_chapter: dict,
     db: Database,
@@ -154,7 +185,8 @@ def _process_single_chapter_from_db(
                 "saved_at": save_path,
                 "end_epoch": current_end_epoch,
                 "provider": provider,
-                "time_taken_epoch": current_end_epoch - current_pickup_epoch
+                "time_taken_epoch": current_end_epoch - current_pickup_epoch,
+                "chapter_number": chapter_number
             }}
         )
         # Update the main progress document
@@ -162,6 +194,7 @@ def _process_single_chapter_from_db(
             {"novel_id": novel_id},
             {"$inc": {"completed_chapters": 1}, "$set": {"last_updated_epoch": time.time()}}
         )
+        _update_novel_translated_chapters_available(db, novel_id)
         console.print(f"Successfully translated and saved chapter {raw_chapter_id}", style="green")
 
     except Exception as e:
