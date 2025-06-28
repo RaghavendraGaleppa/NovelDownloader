@@ -252,26 +252,39 @@ def _save_current_progress(
         {'$set': update_payload}
     )
 
-def _create_raw_chapter_record(
+def _upsert_raw_chapter_record(
     novel_id: ObjectId,
     progress_id: ObjectId,
     chapter_number: int,
     title: str,
     saved_at: str
 ):
-    """Creates a record for the scraped chapter in the 'raw_chapters' collection."""
+    """Creates or updates a record for the scraped chapter in 'raw_chapters' collection."""
     raw_chapters_collection = db_client["raw_chapters"]
     
-    chapter_record = {
+    filter_query = {
         'novel_id': novel_id,
-        'progress_id': progress_id,
-        'chapter_number': chapter_number,
-        'title': title,
-        'saved_at': saved_at,
-        'created_at': datetime.now()
+        'chapter_number': chapter_number
     }
     
-    raw_chapters_collection.insert_one(chapter_record)
+    update_payload = {
+        '$inc': {'n_parts': 1},
+        '$set': { 'updated_at': datetime.now() },
+        '$setOnInsert': {
+            'novel_id': novel_id,
+            'progress_id': progress_id,
+            'chapter_number': chapter_number,
+            'title': title,
+            'saved_at': saved_at,
+            'created_at': datetime.now()
+        }
+    }
+    
+    raw_chapters_collection.update_one(
+        filter_query,
+        update_payload,
+        upsert=True
+    )
 
 def _create_chapter_file(output_dir_path: str, chapter_num_str: str, title: str, paragraphs: list[str]) -> bool:
     """Creates or appends to a markdown file for the given chapter content in the specified output directory."""
@@ -475,7 +488,7 @@ def main(args: argparse.Namespace):
                 chapters_saved_this_session += 1
                 
                 if progress_id and last_known_chapter_num is not None:
-                    _create_raw_chapter_record(
+                    _upsert_raw_chapter_record(
                         novel_id=novel_id,
                         progress_id=progress_id,
                         chapter_number=last_known_chapter_num,
