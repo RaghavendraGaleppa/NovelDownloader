@@ -65,33 +65,19 @@ def finalize_translation_record(db: Database, progress_id: ObjectId, status: str
 
 def _update_novel_translated_chapters_available(db: Database, novel_id: ObjectId):
     """
-    Checks for the highest consecutive translated chapter and updates the novel record.
-    This version fetches all completed chapter numbers and processes them to find the
-    highest consecutive number from chapter 1.
+    Updates the 'translated_chapters_available' field with the total count of
+    completed translations for the novel.
     """
-    novel_doc = db.novels.find_one({"_id": novel_id}, {"translated_chapters_available": 1})
-    last_consecutive = novel_doc.get("translated_chapters_available", 0)
-
-    # Fetch all successfully translated chapter numbers for the novel
-    completed_chapters_cursor = db.translated_chapters.find(
-        {"novel_id": novel_id, "status": "completed", "chapter_number": {"$ne": None}},
-        {"chapter_number": 1, "_id": 0}
+    count = db.translated_chapters.count_documents({
+        "novel_id": novel_id,
+        "status": "completed"
+    })
+    
+    db.novels.update_one(
+        {"_id": novel_id},
+        {"$set": {"translated_chapters_available": count}}
     )
-    
-    completed_numbers = {c["chapter_number"] for c in completed_chapters_cursor}
-    
-    current_consecutive = 0
-    # Starting from chapter 1, check for consecutiveness
-    while (current_consecutive + 1) in completed_numbers:
-        current_consecutive += 1
-            
-    # If we found a new highest consecutive chapter, update the novel document.
-    if current_consecutive > last_consecutive:
-        db.novels.update_one(
-            {"_id": novel_id},
-            {"$set": {"translated_chapters_available": current_consecutive}}
-        )
-        console.print(f"Updated 'translated_chapters_available' for novel {novel_id} to {current_consecutive}", style="dim")
+    console.print(f"Updated 'translated_chapters_available' for novel {novel_id} to {count}", style="dim")
 
 
 def _process_single_chapter_from_db(
@@ -106,6 +92,7 @@ def _process_single_chapter_from_db(
     chapter_num = raw_chapter.get("chapter_number", "N/A")
     console.print(f"Processing chapter {raw_chapter_id} (Chapter Num: {chapter_num}) for translation.", style="dim")
     novel_id = raw_chapter["novel_id"]
+    chapter_number = raw_chapter.get("chapter_number")
     try:
         with open(raw_chapter["saved_at"], 'r', encoding='utf-8') as f:
             chapter_content = f.read()
@@ -129,6 +116,7 @@ def _process_single_chapter_from_db(
                     "status": "in_progress",
                     "pickup_epoch": current_pickup_epoch,
                     "n_tries": n_tries,
+                    "chapter_number": chapter_number,
                 },
                 "$unset": {"end_epoch": "", "provider": "", "time_taken_epoch": ""}  # Clear old data
             }
@@ -142,7 +130,8 @@ def _process_single_chapter_from_db(
             "title": None,
             "pickup_epoch": current_pickup_epoch,
             "status": "in_progress",
-            "n_tries": n_tries
+            "n_tries": n_tries,
+            "chapter_number": chapter_number
         }
         result = db.translated_chapters.insert_one(initial_record)
         record_id = result.inserted_id
@@ -163,7 +152,6 @@ def _process_single_chapter_from_db(
         translation_dir = os.path.join(novel_folder_path, "Translations")
         _ensure_directory_exists(translation_dir)
         
-        chapter_number = raw_chapter.get("chapter_number")
         if chapter_number is None:
             # Fallback for old records that might not have chapter_number
             safe_filename = "".join(x for x in translated_title if x.isalnum() or x in " ._").rstrip()
@@ -185,8 +173,7 @@ def _process_single_chapter_from_db(
                 "saved_at": save_path,
                 "end_epoch": current_end_epoch,
                 "provider": provider,
-                "time_taken_epoch": current_end_epoch - current_pickup_epoch,
-                "chapter_number": chapter_number
+                "time_taken_epoch": current_end_epoch - current_pickup_epoch
             }}
         )
         # Update the main progress document

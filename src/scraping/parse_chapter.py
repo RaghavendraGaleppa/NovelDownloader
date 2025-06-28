@@ -287,15 +287,17 @@ def _upsert_raw_chapter_record(
     )
 
 def _update_novel_raw_chapters_available(
-    novel_id: ObjectId,
-    chapter_number: int
+    novel_id: ObjectId
 ):
-    """Updates the 'raw_chapters_available' field in the 'novels' collection."""
+    """Updates the 'raw_chapters_available' field in the 'novels' collection with the total count."""
+    raw_chapters_collection = db_client["raw_chapters"]
     novels_collection = db_client["novels"]
+    
+    count = raw_chapters_collection.count_documents({'novel_id': novel_id})
     
     novels_collection.update_one(
         {'_id': novel_id},
-        {'$set': {'raw_chapters_available': chapter_number}}
+        {'$set': {'raw_chapters_available': count}}
     )
 
 def _create_chapter_file(output_dir_path: str, chapter_num_str: str, title: str, paragraphs: list[str]) -> bool:
@@ -508,8 +510,7 @@ def main(args: argparse.Namespace):
                         saved_at=filepath
                     )
                     _update_novel_raw_chapters_available(
-                        novel_id=novel_id,
-                        chapter_number=last_known_chapter_num
+                        novel_id=novel_id
                     )
 
                 print("-" * 70) 
