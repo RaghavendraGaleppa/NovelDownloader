@@ -72,7 +72,8 @@ def _process_single_chapter_from_db(
     Processes a single chapter from a raw chapter record from the database.
     """
     raw_chapter_id = raw_chapter["_id"]
-    console.print(f"Processing chapter {raw_chapter_id} for translation.", style="dim")
+    chapter_num = raw_chapter.get("chapter_number", "N/A")
+    console.print(f"Processing chapter {raw_chapter_id} (Chapter Num: {chapter_num}) for translation.", style="dim")
     novel_id = raw_chapter["novel_id"]
     try:
         with open(raw_chapter["saved_at"], 'r', encoding='utf-8') as f:
@@ -197,9 +198,9 @@ def translate_novel_by_id(novel_id: str, workers: int = 1, skip_validation: bool
     novel_name = novel["novel_name"]
     console.print(f"Starting translation for novel '{novel_name}' ({novel_id}) with {workers} workers.", style="bold blue")
 
-    # 1. Get all raw chapter IDs for this novel
-    all_raw_chapter_docs = list(db.raw_chapters.find({"novel_id": novel_object_id}, {"_id": 1}))
-    all_raw_chapter_ids = {str(doc["_id"]) for doc in all_raw_chapter_docs}
+    # 1. Get all raw chapter IDs for this novel, sorted by creation time (ascending)
+    all_raw_chapter_docs = db.raw_chapters.find({"novel_id": novel_object_id}, {"_id": 1}).sort("_id", 1)
+    all_raw_chapter_ids_sorted = [str(doc["_id"]) for doc in all_raw_chapter_docs]
 
     # 2. Get all raw_chapter_ids that have already been successfully translated
     completed_chapters_cursor = db.translated_chapters.find(
@@ -208,10 +209,12 @@ def translate_novel_by_id(novel_id: str, workers: int = 1, skip_validation: bool
     )
     completed_raw_ids = {str(c["raw_chapter_id"]) for c in completed_chapters_cursor}
 
-    # 3. Determine which chapters to process
-    chapters_to_process_ids = list(all_raw_chapter_ids - completed_raw_ids)
+    # 3. Determine which chapters to process, preserving the original sort order
+    chapters_to_process_ids = [
+        chap_id for chap_id in all_raw_chapter_ids_sorted if chap_id not in completed_raw_ids
+    ]
 
-    console.print(f"Found {len(all_raw_chapter_ids)} total raw chapters.", style="blue")
+    console.print(f"Found {len(all_raw_chapter_ids_sorted)} total raw chapters.", style="blue")
     console.print(f"Found {len(completed_raw_ids)} already completed chapters.", style="blue")
     console.print(f"Found {len(chapters_to_process_ids)} chapters to translate.", style="bold blue")
 
@@ -224,7 +227,7 @@ def translate_novel_by_id(novel_id: str, workers: int = 1, skip_validation: bool
         {"novel_id": novel_object_id},
         {"$set": {
             "novel_id": novel_object_id,
-            "total_chapters": len(all_raw_chapter_ids),
+            "total_chapters": len(all_raw_chapter_ids_sorted),
             "completed_chapters": len(completed_raw_ids),
             "last_updated_epoch": time.time()
         }},
