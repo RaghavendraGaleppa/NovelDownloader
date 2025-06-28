@@ -252,26 +252,39 @@ def _save_current_progress(
         {'$set': update_payload}
     )
 
-def _create_raw_chapter_record(
+def _upsert_raw_chapter_record(
     novel_id: ObjectId,
     progress_id: ObjectId,
     chapter_number: int,
     title: str,
     saved_at: str
 ):
-    """Creates a record for the scraped chapter in the 'raw_chapters' collection."""
+    """Creates or updates a record for the scraped chapter in 'raw_chapters' collection."""
     raw_chapters_collection = db_client["raw_chapters"]
     
-    chapter_record = {
+    filter_query = {
         'novel_id': novel_id,
-        'progress_id': progress_id,
-        'chapter_number': chapter_number,
-        'title': title,
-        'saved_at': saved_at,
-        'created_at': datetime.now()
+        'chapter_number': chapter_number
     }
     
-    raw_chapters_collection.insert_one(chapter_record)
+    update_payload = {
+        '$inc': {'n_parts': 1},
+        '$set': { 'updated_at': datetime.now() },
+        '$setOnInsert': {
+            'novel_id': novel_id,
+            'progress_id': progress_id,
+            'chapter_number': chapter_number,
+            'title': title,
+            'saved_at': saved_at,
+            'created_at': datetime.now()
+        }
+    }
+    
+    raw_chapters_collection.update_one(
+        filter_query,
+        update_payload,
+        upsert=True
+    )
 
 def _create_chapter_file(output_dir_path: str, chapter_num_str: str, title: str, paragraphs: list[str]) -> bool:
     """Creates or appends to a markdown file for the given chapter content in the specified output directory."""
@@ -346,6 +359,19 @@ def main(args: argparse.Namespace):
             # Initialize last known chapter from existing record
             last_known_chapter_num = progress_doc.get('last_chapter_parsed')
             print(f"Resuming scrape for '{novel_title}'.")
+
+            raws_folder_from_db = progress_doc.get('raws_folder')
+            if raws_folder_from_db:
+                output_dir_path = raws_folder_from_db
+            else:
+                # Fallback for old records: use folder_path from novel doc
+                novel_folder_path = novel_doc.get('folder_path')
+                if novel_folder_path:
+                    output_dir_path = os.path.join(novel_folder_path, "Raws")
+                else:
+                    # Fallback if folder_path is somehow missing
+                    output_dir_path = os.path.join(base_output_dir, "Raws")
+
             if current_url is None:
                 print("Progress data indicates task was already completed.")
                 return
@@ -356,6 +382,10 @@ def main(args: argparse.Namespace):
                 return
             
             print(f"No active progress found for '{novel_title}'. Starting new scraping session from {start_url_param}.")
+            
+            absolute_folder_path = os.path.abspath(base_output_dir)
+            output_dir_path = os.path.join(absolute_folder_path, "Raws")
+            
             original_start_url = start_url_param
             current_url = original_start_url
             last_known_chapter_num = None # New scrape starts with no chapter parsed
@@ -363,6 +393,7 @@ def main(args: argparse.Namespace):
                 'novel_id': novel_id,
                 'original_start_url': original_start_url,
                 'output_base_dir_name': safe_novel_title_dir_name,
+                'raws_folder': output_dir_path,
                 'last_scraped_url': None,
                 'next_url_to_scrape': current_url,
                 'last_chapter_parsed': None
@@ -382,6 +413,8 @@ def main(args: argparse.Namespace):
         last_known_chapter_num = None # New scrape starts with no chapter parsed
 
         absolute_folder_path = os.path.abspath(base_output_dir)
+        output_dir_path = os.path.join(absolute_folder_path, "Raws")
+        
         novel_document = {
             'novel_name': novel_title,
             'added_datetime': datetime.now(),
@@ -396,6 +429,7 @@ def main(args: argparse.Namespace):
             'novel_id': novel_id,
             'original_start_url': original_start_url,
             'output_base_dir_name': safe_novel_title_dir_name,
+            'raws_folder': output_dir_path,
             'last_scraped_url': None,
             'next_url_to_scrape': current_url,
             'last_chapter_parsed': None
@@ -403,12 +437,6 @@ def main(args: argparse.Namespace):
         inserted_progress = progress_collection.insert_one(progress_record)
         progress_id = inserted_progress.inserted_id
         print("Created new progress tracking record.")
-
-    # Set final output directory - use custom path if provided, otherwise use Novels/novel_title with novel-specific Raws subfolder
-    if args.output_path:
-        output_dir_path = os.path.join(args.output_path, f"{safe_novel_title_dir_name}-Raws")
-    else:
-        output_dir_path = os.path.join("Novels", safe_novel_title_dir_name, f"{safe_novel_title_dir_name}-Raws")
 
     if not _ensure_output_directory(output_dir_path):
         return
@@ -460,7 +488,7 @@ def main(args: argparse.Namespace):
                 chapters_saved_this_session += 1
                 
                 if progress_id and last_known_chapter_num is not None:
-                    _create_raw_chapter_record(
+                    _upsert_raw_chapter_record(
                         novel_id=novel_id,
                         progress_id=progress_id,
                         chapter_number=last_known_chapter_num,
