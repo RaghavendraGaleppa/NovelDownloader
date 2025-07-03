@@ -182,7 +182,7 @@ def _process_single_chapter_from_db(
             {"$inc": {"completed_chapters": 1}, "$set": {"last_updated_epoch": time.time()}}
         )
         _update_novel_translated_chapters_available(db, novel_id)
-        console.print(f"Successfully translated and saved chapter {raw_chapter_id}", style="green")
+        console.print(f"Successfully translated and saved chapter {chapter_number} ({raw_chapter_id})", style="green")
 
     except Exception as e:
         console.print(f"Error processing chapter {raw_chapter_id}: {e}", style="red")
