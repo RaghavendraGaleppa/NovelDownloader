@@ -39,7 +39,6 @@ class TranslatedChapterSerializer(BaseModel):
 
 class NovelDataSerializer(BaseModel):
     novel: NovelSerializer
-    chapters: List[TranslatedChapterSerializer]
     
     class Config:
         arbitrary_types_allowed = True

@@ -42,7 +42,15 @@ async def novel(novel_id: str):
     
     response_data = NovelDataSerializer(
         novel=NovelSerializer(**novel_data),
-        chapters=[TranslatedChapterSerializer(**chapter) for chapter in chapters_data]
     )
 
     return BaseResponseSerializer(data=response_data, ref_code=200)
+
+
+@app.get("/novel/{novel_id}/chapters/{chapter_id}", response_model=BaseResponseSerializer)
+async def novel_chapters(novel_id: str):
+    api_logger.info(f"Novel chapters page hit for {novel_id}")
+    chapters_data = db_client.translated_chapters.find({"novel_id": ObjectId(novel_id)})
+    chapters_list = [TranslatedChapterSerializer(**chapter) for chapter in chapters_data]
+    return BaseResponseSerializer(data=chapters_list)
+
