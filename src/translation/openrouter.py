@@ -97,7 +97,8 @@ def translate_chinese_to_english(text_to_translate: str, key_override: dict | No
             }
 
             try:
-                response = requests.post(api_url, headers=headers, json=payload, timeout=None)
+                # I am setting the timeout to 5 minutes
+                response = requests.post(api_url, headers=headers, json=payload, timeout=5*60)
                 response.raise_for_status()
                 response_data = response.json()
                 
