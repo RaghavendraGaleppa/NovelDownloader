@@ -20,6 +20,8 @@ api_providers = {
         "model_names": [
             "deepseek/deepseek-chat-v3-0324:free",
             "google/gemini-2.0-flash-exp:free",
+            "meta-llama/llama-4-maverick:free",
+            "qwen/qwq-32b:free"
         ]
     }
 }

@@ -439,5 +439,6 @@ if __name__ == "__main__":
         translate_novel_by_id(
             novel_id=novel_id,
             workers=args.workers,
-            skip_validation=args.skip_validation
+            skip_validation=args.skip_validation,
+            wait_for_new_chapters=True
         ) 
