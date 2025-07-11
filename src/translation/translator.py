@@ -182,7 +182,7 @@ def _process_single_chapter_from_db(
             {"$inc": {"completed_chapters": 1}, "$set": {"last_updated_epoch": time.time()}}
         )
         _update_novel_translated_chapters_available(db, novel_id)
-        console.print(f"Successfully translated and saved chapter {raw_chapter_id}", style="green")
+        console.print(f"Successfully translated and saved chapter {chapter_number} ({raw_chapter_id}) in {current_end_epoch - current_pickup_epoch} seconds", style="green")
 
     except Exception as e:
         console.print(f"Error processing chapter {raw_chapter_id}: {e}", style="red")
@@ -195,7 +195,7 @@ def _process_single_chapter_from_db(
         raise e  # Re-raise the exception to be caught by the main loop
 
 
-def translate_novel_by_id(novel_id: str, workers: int = 1, skip_validation: bool = False):
+def translate_novel_by_id(novel_id: str, workers: int = 1, skip_validation: bool = False, wait_for_new_chapters: bool = False):
     """
     Translates a novel using the new database-driven approach.
     """
@@ -217,59 +217,67 @@ def translate_novel_by_id(novel_id: str, workers: int = 1, skip_validation: bool
 
     novel_name = novel["novel_name"]
     console.print(f"Starting translation for novel '{novel_name}' ({novel_id}) with {workers} workers.", style="bold blue")
+    
 
-    # 1. Get all raw chapter IDs for this novel, sorted by creation time (ascending)
-    all_raw_chapter_docs = db.raw_chapters.find({"novel_id": novel_object_id}, {"_id": 1}).sort("_id", 1)
-    all_raw_chapter_ids_sorted = [str(doc["_id"]) for doc in all_raw_chapter_docs]
+    while True:
 
-    # 2. Get all raw_chapter_ids that have already been successfully translated
-    completed_chapters_cursor = db.translated_chapters.find(
-        {"novel_id": novel_object_id, "status": "completed"},
-        {"raw_chapter_id": 1, "_id": 0}
-    )
-    completed_raw_ids = {str(c["raw_chapter_id"]) for c in completed_chapters_cursor}
+        # 1. Get all raw chapter IDs for this novel, sorted by creation time (ascending)
+        all_raw_chapter_docs = db.raw_chapters.find({"novel_id": novel_object_id}, {"_id": 1}).sort("_id", 1)
+        all_raw_chapter_ids_sorted = [str(doc["_id"]) for doc in all_raw_chapter_docs]
 
-    # 3. Determine which chapters to process, preserving the original sort order
-    chapters_to_process_ids = [
-        chap_id for chap_id in all_raw_chapter_ids_sorted if chap_id not in completed_raw_ids
-    ]
+        # 2. Get all raw_chapter_ids that have already been successfully translated
+        completed_chapters_cursor = db.translated_chapters.find(
+            {"novel_id": novel_object_id, "status": "completed"},
+            {"raw_chapter_id": 1, "_id": 0}
+        )
+        completed_raw_ids = {str(c["raw_chapter_id"]) for c in completed_chapters_cursor}
 
-    console.print(f"Found {len(all_raw_chapter_ids_sorted)} total raw chapters.", style="blue")
-    console.print(f"Found {len(completed_raw_ids)} already completed chapters.", style="blue")
-    console.print(f"Found {len(chapters_to_process_ids)} chapters to translate.", style="bold blue")
+        # 3. Determine which chapters to process, preserving the original sort order
+        chapters_to_process_ids = [
+            chap_id for chap_id in all_raw_chapter_ids_sorted if chap_id not in completed_raw_ids
+        ]
 
-    if not chapters_to_process_ids:
-        console.print("All chapters already translated.", style="green")
-        return
+        console.print(f"Found {len(all_raw_chapter_ids_sorted)} total raw chapters.", style="blue")
+        console.print(f"Found {len(completed_raw_ids)} already completed chapters.", style="blue")
+        console.print(f"Found {len(chapters_to_process_ids)} chapters to translate.", style="bold blue")
 
-    # 4. Initialize/update the main progress document
-    db.translation_progress.update_one(
-        {"novel_id": novel_object_id},
-        {"$set": {
-            "novel_id": novel_object_id,
-            "total_chapters": len(all_raw_chapter_ids_sorted),
-            "completed_chapters": len(completed_raw_ids),
-            "last_updated_epoch": time.time()
-        }},
-        upsert=True
-    )
+        if not chapters_to_process_ids:
+            console.print("All chapters already translated.", style="green")
+            return
 
-    with ThreadPoolExecutor(max_workers=workers) as executor:
-        futures = []
-        for chapter_id in chapters_to_process_ids:
-            raw_chapter_doc = db.raw_chapters.find_one({"_id": ObjectId(chapter_id)})
-            if raw_chapter_doc:
-                futures.append(executor.submit(_process_single_chapter_from_db, raw_chapter_doc, db, novel_folder_path))
+        # 4. Initialize/update the main progress document
+        db.translation_progress.update_one(
+            {"novel_id": novel_object_id},
+            {"$set": {
+                "novel_id": novel_object_id,
+                "total_chapters": len(all_raw_chapter_ids_sorted),
+                "completed_chapters": len(completed_raw_ids),
+                "last_updated_epoch": time.time()
+            }},
+            upsert=True
+        )
 
-        for future in as_completed(futures):
-            try:
-                future.result()
-            except Exception as e:
-                console.print(f"A worker failed while processing a chapter: {e}", style="red")
-                # Print traceback
-                traceback.print_exc()
+        with ThreadPoolExecutor(max_workers=workers) as executor:
+            futures = []
+            for chapter_id in chapters_to_process_ids:
+                raw_chapter_doc = db.raw_chapters.find_one({"_id": ObjectId(chapter_id)})
+                if raw_chapter_doc:
+                    futures.append(executor.submit(_process_single_chapter_from_db, raw_chapter_doc, db, novel_folder_path))
 
-    console.print(f"Translation finished for novel {novel_id}.", style="bold green")
+            for future in as_completed(futures):
+                try:
+                    future.result()
+                except Exception as e:
+                    console.print(f"A worker failed while processing a chapter: {e}", style="red")
+                    # Print traceback
+                    traceback.print_exc()
+
+        if not wait_for_new_chapters:
+            console.print(f"Translation finished for novel {novel_id}.", style="bold green")
+            break
+        else:
+            console.print(f"Waiting for new chapters to be added to the database...", style="bold blue")
+            time.sleep(10)
 
 
 def validate_api_keys() -> tuple[bool, str | None]:
@@ -431,5 +439,6 @@ if __name__ == "__main__":
         translate_novel_by_id(
             novel_id=novel_id,
             workers=args.workers,
-            skip_validation=args.skip_validation
+            skip_validation=args.skip_validation,
+            wait_for_new_chapters=True
         ) 

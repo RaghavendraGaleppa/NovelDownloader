@@ -20,6 +20,8 @@ api_providers = {
         "model_names": [
             "deepseek/deepseek-chat-v3-0324:free",
             "google/gemini-2.0-flash-exp:free",
+            "meta-llama/llama-4-maverick:free",
+            "qwen/qwq-32b:free"
         ]
     }
 }
@@ -97,7 +99,8 @@ def translate_chinese_to_english(text_to_translate: str, key_override: dict | No
             }
 
             try:
-                response = requests.post(api_url, headers=headers, json=payload, timeout=None)
+                # I am setting the timeout to 5 minutes
+                response = requests.post(api_url, headers=headers, json=payload, timeout=5*60)
                 response.raise_for_status()
                 response_data = response.json()
                 
