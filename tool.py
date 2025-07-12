@@ -74,7 +74,8 @@ def cmd_translate(args):
         novel_id=novel_id,
         workers=args.workers,
         skip_validation=args.skip_validation ,
-        wait_for_new_chapters=True
+        wait_for_new_chapters=True,
+        retry_from_chapter=args.retry_from_chapter
     )
 
 
@@ -280,6 +281,11 @@ def main():
         action="store_true",
         default=False,
         help="Skip API validation and use the last used provider."
+    )
+    translate_parser.add_argument(
+        "-r", "--retry-from-chapter",
+        type=int,
+        help="Retry from a specific chapter number. This will resume the translation from the given chapter number."
     )
     translate_parser.set_defaults(func=cmd_translate)
     

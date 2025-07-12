@@ -23,6 +23,25 @@ api_providers = {
             "meta-llama/llama-4-maverick:free",
             "qwen/qwq-32b:free"
         ]
+    },
+    "google": {
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+        "model_names": ["gemini-2.0-flash"]
+    },
+    "nvidia": {
+        "url": "https://integrate.api.nvidia.com/v1/chat/completions",
+        "model_names": [
+            "meta/llama-4-maverick-17b-128e-instruct",
+            "qwen/qwen3-235b-a22b"
+        ]
+    },
+    "groq": {
+        "url": "https://api.groq.com/openai/v1/chat/completions",
+        "model_names": [
+            'meta-llama/llama-4-maverick-17b-128e-instruct',
+            'qwen/qwen3-32b',
+            'qwen-qwq-32b',
+        ]
     }
 }
 
@@ -87,15 +106,39 @@ def translate_chinese_to_english(text_to_translate: str, key_override: dict | No
 
         CONSOLE.print(f"🔄 Attempting translation with: [bold cyan]{key_name}[/bold cyan] (Key #{i + 1})", style="dim")
 
-        headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
-        
-        for model_name in available_models:
-            messages = [
-                {"role": "system", "content": "You are a professional Chinese to English translator and editor for Xianxia novels. The provided text may be merged from multiple pages, causing repeated chapter titles and promotional text. Please translate it into a clean, continuous chapter. You MUST: 1. Remove all advertisements and non-story metadata. 2. Keep the chapter title only once at the beginning and remove any duplicates. 3. Merge all content into a seamless narrative. Output only the final, clean, and consolidated English translation."},
-                {"role": "user", "content": f"Translate, clean, and consolidate the following text into a single continuous chapter: '{text_to_translate}'"}
-            ]
+        # Handle Google Gemini API differently
+        if provider_name == "google":
+            headers = {"X-goog-api-key": api_key, "Content-Type": "application/json"}
+            
+            # Google Gemini API format
             payload = {
-                "model": model_name, "messages": messages, "temperature": 0.3, "max_tokens": 50000
+                "contents": [
+                    {
+                        "parts": [
+                            {
+                                "text": f"You are a professional Chinese to English translator and editor for Xianxia novels. The provided text may be merged from multiple pages, causing repeated chapter titles and promotional text. Please translate it into a clean, continuous chapter. You MUST: 1. Remove all advertisements and non-story metadata. 2. Keep the chapter title only once at the beginning and remove any duplicates. 3. Merge all content into a seamless narrative. Output only the final, clean, and consolidated English translation.\n\nTranslate, clean, and consolidate the following text into a single continuous chapter: '{text_to_translate}'"
+                            }
+                        ]
+                    }
+                ],
+                "safetySettings": [
+                    {
+                        "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
+                        "threshold": "BLOCK_NONE"
+                    },
+                    {
+                        "category": "HARM_CATEGORY_HATE_SPEECH",
+                        "threshold": "BLOCK_NONE"
+                    },
+                    {
+                        "category": "HARM_CATEGORY_HARASSMENT",
+                        "threshold": "BLOCK_NONE"
+                    },
+                    {
+                        "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+                        "threshold": "BLOCK_NONE"
+                    }
+                ]
             }
 
             try:
@@ -104,28 +147,88 @@ def translate_chinese_to_english(text_to_translate: str, key_override: dict | No
                 response.raise_for_status()
                 response_data = response.json()
                 
-                if response_data and response_data.get("choices"):
-                    translated_text = response_data["choices"][0]["message"]["content"].strip()
-                    CONSOLE.print(f"✅ Success with [bold cyan]{key_name}[/bold cyan] using model [green]{model_name}[/green].", style="dim")
+                if response_data and response_data.get("candidates") and response_data["candidates"][0].get("content"):
+                    translated_text = response_data["candidates"][0]["content"]["parts"][0]["text"].strip()
+                    CONSOLE.print(f"✅ Success with [bold cyan]{key_name}[/bold cyan] using Google Gemini.", style="dim")
                     return translated_text, key_name
                 else:
-                    CONSOLE.print(f"⚠️  Warning: No translation found in API response for model {model_name}. Response: {response_data}", style="yellow")
+                    CONSOLE.print(f"⚠️  Warning: No translation found in Google API response. Response: {response_data}", style="yellow")
                     continue
 
             except requests.exceptions.HTTPError as http_err:
                 if http_err.response is not None and http_err.response.status_code == 429:
-                    CONSOLE.print(f"Rate limit for model {model_name}. Trying next model...", style="yellow")
+                    CONSOLE.print(f"Rate limit for Google Gemini. Moving to next key...", style="yellow")
                     continue
                 else:
                     error_body = http_err.response.text if http_err.response else "No response body"
-                    CONSOLE.print(f"❌ HTTP Error with {provider_name}/{model_name}: {http_err} - {error_body}", style="red")
-                    break  # Break from model loop, move to next key
+                    CONSOLE.print(f"❌ HTTP Error with Google Gemini: {http_err} - {error_body}", style="red")
+                    continue
             except requests.exceptions.RequestException as req_err:
-                CONSOLE.print(f"❌ Request Error with {provider_name}/{model_name}: {req_err}", style="red")
-                break # Break from model loop, move to next key
+                CONSOLE.print(f"❌ Request Error with Google Gemini: {req_err}", style="red")
+                continue
             except Exception as e:
-                CONSOLE.print(f"❌ Unforeseen Error with {provider_name}/{model_name}: {e}", style="red")
-                break # Break from model loop, move to next key
+                CONSOLE.print(f"❌ Unforeseen Error with Google Gemini: {e}", style="red")
+                continue
+
+        else:
+            # Handle OpenAI-compatible APIs (chutes, openrouter, nvidia, groq)
+            headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+            
+            for model_name in available_models:
+                messages = [
+                    {"role": "system", "content": "You are a professional Chinese to English translator and editor for Xianxia novels. The provided text may be merged from multiple pages, causing repeated chapter titles and promotional text. Please translate it into a clean, continuous chapter. You MUST: 1. Remove all advertisements and non-story metadata. 2. Keep the chapter title only once at the beginning and remove any duplicates. 3. Merge all content into a seamless narrative. Output only the final, clean, and consolidated English translation."},
+                    {"role": "user", "content": f"Translate, clean, and consolidate the following text into a single continuous chapter: '{text_to_translate}'"}
+                ]
+
+                
+                # Handle Groq-specific parameters
+                if provider_name == "groq":
+                    payload = {
+                        "model": model_name, "messages": messages, "temperature": 0.3, "max_completion_tokens": 4096
+                    }
+                else:
+                    payload = {
+                        "model": model_name, "messages": messages, "temperature": 0.3, "max_tokens": 50000
+                    }
+
+                try:
+                    # I am setting the timeout to 5 minutes
+                    response = requests.post(api_url, headers=headers, json=payload, timeout=5*60)
+                    response.raise_for_status()
+                    response_data = response.json()
+                    
+                    if response_data and response_data.get("choices"):
+                        translated_text = response_data["choices"][0]["message"]["content"].strip()
+                        CONSOLE.print(f"✅ Success with [bold cyan]{key_name}[/bold cyan] using model [green]{model_name}[/green].", style="dim")
+                        return translated_text, key_name
+                    else:
+                        CONSOLE.print(f"⚠️  Warning: No translation found in API response for model {model_name}. Response: {response_data}", style="yellow")
+                        continue
+
+                except requests.exceptions.HTTPError as http_err:
+                    if http_err.response is not None and http_err.response.status_code == 429:
+                        CONSOLE.print(f"Rate limit for model {model_name}. Trying next model...", style="yellow")
+                        continue
+                    else:
+                        error_body = "No response body"
+                        if http_err.response:
+                            try:
+                                error_body = http_err.response.text
+                                # Try to parse JSON error if available
+                                if error_body:
+                                    error_json = json.loads(error_body)
+                                    if 'error' in error_json:
+                                        error_body = f"Error: {error_json['error']}"
+                            except:
+                                error_body = http_err.response.text if http_err.response.text else "No response body"
+                        CONSOLE.print(f"❌ HTTP Error with {provider_name}/{model_name}: {http_err} - {error_body}", style="red")
+                        break  # Break from model loop, move to next key
+                except requests.exceptions.RequestException as req_err:
+                    CONSOLE.print(f"❌ Request Error with {provider_name}/{model_name}: {req_err}", style="red")
+                    break # Break from model loop, move to next key
+                except Exception as e:
+                    CONSOLE.print(f"❌ Unforeseen Error with {provider_name}/{model_name}: {e}", style="red")
+                    break # Break from model loop, move to next key
 
     return "Error: All specified API keys and models failed to provide a translation.", None
 

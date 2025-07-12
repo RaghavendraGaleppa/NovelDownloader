@@ -12,6 +12,7 @@ from main import db_client
 from bson.objectid import ObjectId
 from datetime import datetime
 from pymongo.database import Database
+from typing import Optional
 
 
 # Create a thread-safe console instance
@@ -183,6 +184,11 @@ def _process_single_chapter_from_db(
         )
         _update_novel_translated_chapters_available(db, novel_id)
         console.print(f"Successfully translated and saved chapter {chapter_number} ({raw_chapter_id}) in {current_end_epoch - current_pickup_epoch} seconds", style="green")
+        
+        # if the time taken is less than 10 seconds, sleep for 10 seconds
+        if current_end_epoch - current_pickup_epoch < 10:
+            console.print(f"Sleeping for 10 seconds because the time taken is less than 10 seconds", style="yellow")
+            time.sleep(30)
 
     except Exception as e:
         console.print(f"Error processing chapter {raw_chapter_id}: {e}", style="red")
@@ -195,7 +201,8 @@ def _process_single_chapter_from_db(
         raise e  # Re-raise the exception to be caught by the main loop
 
 
-def translate_novel_by_id(novel_id: str, workers: int = 1, skip_validation: bool = False, wait_for_new_chapters: bool = False):
+def translate_novel_by_id(novel_id: str, workers: int = 1, skip_validation: bool = False, wait_for_new_chapters: bool = False, retry_from_chapter: Optional[int] = None):
+    
     """
     Translates a novel using the new database-driven approach.
     """
@@ -226,12 +233,19 @@ def translate_novel_by_id(novel_id: str, workers: int = 1, skip_validation: bool
         all_raw_chapter_ids_sorted = [str(doc["_id"]) for doc in all_raw_chapter_docs]
 
         # 2. Get all raw_chapter_ids that have already been successfully translated
-        completed_chapters_cursor = db.translated_chapters.find(
-            {"novel_id": novel_object_id, "status": "completed"},
-            {"raw_chapter_id": 1, "_id": 0}
-        )
-        completed_raw_ids = {str(c["raw_chapter_id"]) for c in completed_chapters_cursor}
+        if retry_from_chapter:
+            console.print(f"Retrying from chapter {retry_from_chapter}", style="bold blue")
+            completed_chapters_cursor = db.translated_chapters.find(
+                {"novel_id": novel_object_id, "status": "completed", "chapter_number": {"$lt": retry_from_chapter}},
+                {"raw_chapter_id": 1, "_id": 0}
+            )
+        else:
+            completed_chapters_cursor = db.translated_chapters.find(
+                {"novel_id": novel_object_id, "status": "completed"},
+                {"raw_chapter_id": 1, "_id": 0}
+            )
 
+        completed_raw_ids = {str(c["raw_chapter_id"]) for c in completed_chapters_cursor}
         # 3. Determine which chapters to process, preserving the original sort order
         chapters_to_process_ids = [
             chap_id for chap_id in all_raw_chapter_ids_sorted if chap_id not in completed_raw_ids
