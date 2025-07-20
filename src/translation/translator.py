@@ -188,7 +188,7 @@ def _process_single_chapter_from_db(
         # if the time taken is less than 10 seconds, sleep for 10 seconds
         if current_end_epoch - current_pickup_epoch < 10:
             console.print(f"Sleeping for 10 seconds because the time taken is less than 10 seconds", style="yellow")
-            time.sleep(30)
+            time.sleep(60)
 
     except Exception as e:
         console.print(f"Error processing chapter {raw_chapter_id}: {e}", style="red")

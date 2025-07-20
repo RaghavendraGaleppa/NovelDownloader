@@ -195,6 +195,27 @@ def translate_chinese_to_english(text_to_translate: str, key_override: dict | No
                     # I am setting the timeout to 5 minutes
                     response = requests.post(api_url, headers=headers, json=payload, timeout=5*60)
                     response.raise_for_status()
+                    
+                    # Check for rate limit headers
+                    rate_limit_headers = {
+                        'x-ratelimit-limit-requests': 'Limit Requests (RPD)',
+                        'x-ratelimit-limit-tokens': 'Limit Tokens (TPM)',
+                        'x-ratelimit-remaining-requests': 'Remaining Requests (RPD)',
+                        'x-ratelimit-remaining-tokens': 'Remaining Tokens (TPM)',
+                        'x-ratelimit-reset-requests': 'Reset Requests',
+                        'x-ratelimit-reset-tokens': 'Reset Tokens'
+                    }
+                    
+                    found_headers = []
+                    for header, description in rate_limit_headers.items():
+                        if header in response.headers:
+                            found_headers.append(f"{description}: {response.headers[header]}")
+                    
+                    if found_headers:
+                        CONSOLE.print("📊 Rate Limit Info:", style="dim")
+                        for header_info in found_headers:
+                            CONSOLE.print(f"   {header_info}", style="dim")
+                    
                     response_data = response.json()
                     
                     if response_data and response_data.get("choices"):
