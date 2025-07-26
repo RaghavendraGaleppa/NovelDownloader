@@ -15,6 +15,15 @@ from datetime import datetime
 from main import db_client
 from bson.objectid import ObjectId
 
+# Add these imports at the top
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from webdriver_manager.chrome import ChromeDriverManager
+
 # Disable SSL warnings
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -22,13 +31,99 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # --- Scraper Class ---
 
+class SeleniumScraper:
+    """
+    Browser-based scraper using Selenium for handling complex Cloudflare challenges.
+    """
+    
+    def __init__(self, timeout=30, headless=True):
+        self.timeout = timeout
+        self.headless = headless
+        self.driver = None
+        self._setup_driver()
+    
+    def _setup_driver(self):
+        """Set up Chrome driver with options to bypass detection."""
+        options = Options()
+        if self.headless:
+            options.add_argument('--headless')
+        
+        # Anti-detection options
+        options.add_argument('--no-sandbox')
+        options.add_argument('--disable-dev-shm-usage')
+        options.add_argument('--disable-blink-features=AutomationControlled')
+        options.add_experimental_option("excludeSwitches", ["enable-automation"])
+        options.add_experimental_option('useAutomationExtension', False)
+        options.add_argument('--user-agent=Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')
+        
+        # Disable SSL verification
+        options.add_argument('--ignore-ssl-errors=yes')
+        options.add_argument('--ignore-certificate-errors')
+        options.add_argument('--allow-running-insecure-content')
+        
+        service = Service(ChromeDriverManager().install())
+        self.driver = webdriver.Chrome(service=service, options=options)
+        
+        # Execute script to remove webdriver property
+        self.driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
+    
+    def fetch_url(self, url, wait_for_element=None):
+        """
+        Fetch content using Selenium.
+        
+        Args:
+            url (str): URL to fetch
+            wait_for_element (str): CSS selector to wait for (optional)
+            
+        Returns:
+            str or None: Page source if successful
+        """
+        try:
+            print(f"Loading {url} with Selenium...")
+            self.driver.get(url)
+            
+            # Wait for Cloudflare challenge to complete
+            print("Waiting for page to load and challenges to resolve...")
+            time.sleep(5)
+            
+            # If specific element provided, wait for it
+            if wait_for_element:
+                WebDriverWait(self.driver, self.timeout).until(
+                    EC.presence_of_element_located((By.CSS_SELECTOR, wait_for_element))
+                )
+            else:
+                # Wait for body element to ensure page is loaded
+                WebDriverWait(self.driver, self.timeout).until(
+                    EC.presence_of_element_located((By.TAG_NAME, "body"))
+                )
+            
+            # Additional wait to ensure any dynamic content loads
+            time.sleep(3)
+            
+            return self.driver.page_source
+            
+        except Exception as e:
+            print(f"Selenium fetch failed for {url}: {e}")
+            return None
+    
+    def close(self):
+        """Clean up the driver."""
+        if self.driver:
+            self.driver.quit()
+    
+    def __enter__(self):
+        return self
+    
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+
 class NovelScraper:
     """
     A web scraper class specifically designed for fetching novel content from websites.
     Handles SSL issues and provides robust HTTP request functionality.
     """
     
-    def __init__(self, timeout=30):
+    def __init__(self, timeout=30, use_selenium=False):
         """
         Initialize the NovelScraper with SSL verification disabled.
         
@@ -36,25 +131,48 @@ class NovelScraper:
             timeout (int): Request timeout in seconds (default: 30)
         """
         self.timeout = timeout
-        self.scraper = self._setup_scraper()
+        self.use_selenium = use_selenium
+        
+        if use_selenium:
+            self.scraper = SeleniumScraper(timeout=timeout)
+        else:
+            self.scraper = self._setup_scraper()
     
     def _setup_scraper(self):
         """
-        Set up cloudscraper with complete SSL verification bypass.
+        Set up cloudscraper with enhanced Cloudflare bypass capabilities.
         
         Returns:
             cloudscraper.CloudScraper: Configured scraper instance
         """
-        # Initialize cloudscraper with SSL verification completely disabled
+        # Initialize cloudscraper with better browser simulation
         scraper = cloudscraper.create_scraper(
             browser={
                 'browser': 'chrome',
-                'platform': 'linux',  # Or 'windows', 'darwin' based on your OS
+                'platform': 'linux',
                 'mobile': False
-            }
+            },
+            delay=10,  # Add delay for challenge solving
+            debug=False
         )
         
-        # Completely disable SSL verification and hostname checking
+        # Add realistic headers
+        scraper.headers.update({
+            'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'DNT': '1',
+            'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1',
+            'Sec-Fetch-Dest': 'document',
+            'Sec-Fetch-Mode': 'navigate',
+            'Sec-Fetch-Site': 'none',
+            'Sec-Fetch-User': '?1',
+            'Cache-Control': 'max-age=0'
+        })
+        
+        # Completely disable SSL verification
         scraper.verify = False
         
         # Mount a custom HTTPAdapter that disables SSL verification
@@ -74,32 +192,64 @@ class NovelScraper:
         scraper.mount('http://', HTTPAdapter())
         
         return scraper
-    
-    def fetch_url(self, url):
+
+    def fetch_url(self, url, max_retries=3):
         """
-        Fetch content from the given URL with error handling.
+        Fetch content from the given URL with enhanced error handling and retries.
         
         Args:
             url (str): The URL to fetch
+            max_retries (int): Maximum number of retry attempts
             
         Returns:
             str or None: The HTML content if successful, None if failed
         """
-        response = None
-        try:
-            response = self.scraper.get(url, verify=False, timeout=self.timeout)
-            response.raise_for_status()  # Raise an HTTPError for bad responses (4xx or 5xx)
-            return response.text
-        except requests.exceptions.RequestException as e:
-            error_message = f"Failed to fetch {url}"
-            if response is not None: 
-                error_message += f" - Status Code: {response.status_code}"
-            error_message += f" - Error: {e}"
-            print(error_message)
-            return None
-        except Exception as e:
-            print(f"An unexpected error occurred while fetching URL {url}: {e}")
-            return None
+        if self.use_selenium:
+            # Use Selenium scraper directly
+            return self.scraper.fetch_url(url)
+        
+        # Use CloudScraper with retries
+        for attempt in range(max_retries):
+            try:
+                print(f"Attempting to fetch {url} (attempt {attempt + 1}/{max_retries})")
+                
+                # Add delay between attempts
+                if attempt > 0:
+                    wait_time = (attempt * 5) + random.uniform(2, 5)
+                    print(f"Waiting {wait_time:.2f} seconds before retry...")
+                    time.sleep(wait_time)
+                
+                response = self.scraper.get(url, verify=False, timeout=self.timeout)
+                
+                # Check for Cloudflare challenge
+                if response.status_code == 403 and 'Just a moment' in response.text:
+                    print(f"Cloudflare challenge detected on attempt {attempt + 1}. Retrying...")
+                    continue
+                
+                response.raise_for_status()
+                return response.text
+                
+            except requests.exceptions.RequestException as e:
+                error_message = f"Attempt {attempt + 1} failed to fetch {url}"
+                if 'response' in locals():
+                    error_message += f" - Status Code: {response.status_code}"
+                error_message += f" - Error: {e}"
+                print(error_message)
+                
+                if attempt == max_retries - 1:
+                    print(f"All {max_retries} attempts failed for {url}")
+                    return None
+            except Exception as e:
+                print(f"Unexpected error on attempt {attempt + 1} for URL {url}: {e}")
+                if attempt == max_retries - 1:
+                    return None
+        
+        return None
+    
+    def close(self):
+        """Clean up resources."""
+        if self.use_selenium and hasattr(self.scraper, 'close'):
+            self.scraper.close()
 
 # --- Backend Detection ---
 
@@ -130,18 +280,23 @@ def detect_extraction_backend(url: str) -> ExtractionBackend:
 
 # --- Helper Functions (Updated to use backends) ---
 
-def scrape_chapter(url):
+def scrape_chapter(url, use_selenium=False):
     """
-    Scrape a chapter from the given URL using the NovelScraper class.
+    Scrape a chapter from the given URL.
     
     Args:
         url (str): The URL of the chapter to scrape
+        use_selenium (bool): Whether to use Selenium instead of CloudScraper
         
     Returns:
         str or None: The HTML content if successful, None if failed
     """
-    scraper = NovelScraper()
-    return scraper.fetch_url(url)
+    scraper = NovelScraper(use_selenium=use_selenium)
+    try:
+        return scraper.fetch_url(url)
+    finally:
+        if use_selenium:
+            scraper.close()
 
 def get_next_chapter_url(html_content: str, url: Optional[str] = None) -> Optional[str]:
     """
@@ -158,7 +313,7 @@ def get_next_chapter_url(html_content: str, url: Optional[str] = None) -> Option
     backend = detect_extraction_backend(url) if url else EB69Shu()
     return backend.get_next_chapter_url(html_content, url)
 
-def scrape_novel_content(source: str, source_type: str = 'file') -> tuple[str, list[str], str | None, str | None]:
+def scrape_novel_content(source: str, source_type: str = 'file', use_selenium: bool = False) -> tuple[str, list[str], str | None, str | None]:
     """
     Scrapes the title, Chinese novel text paragraphs, next chapter URL, and chapter number from an HTML source.
 
@@ -184,7 +339,7 @@ def scrape_novel_content(source: str, source_type: str = 'file') -> tuple[str, l
             return f"Error Reading File: {e}", [], None, None
     elif source_type == 'url':
         try:
-            html_doc = scrape_chapter(source)
+            html_doc = scrape_chapter(source, use_selenium=use_selenium)
         except requests.exceptions.RequestException as e:
             print(f"Error fetching URL {source}: {e}")
             return f"Error Fetching URL: {e}", [], None, None
@@ -474,7 +629,11 @@ def main(args: argparse.Namespace):
             break
 
         print(f"Scraping chapter from: {current_url}")
-        title, paragraphs, next_url_from_scraper, chapter_num_str = scrape_novel_content(current_url, source_type='url')
+        title, paragraphs, next_url_from_scraper, chapter_num_str = scrape_novel_content(
+            current_url, 
+            source_type='url',
+            use_selenium=args.use_selenium
+        )
 
         if title is None or title.startswith("Error:") or title == "No Content Found" or title == "Invalid Source Type":
             print(f"Error scraping {current_url}: {title}. Stopping session.")
@@ -562,6 +721,10 @@ if __name__ == "__main__":
     parser.add_argument("-o", "--output-path", 
                         type=str, 
                         help="Custom output directory path. If not specified, uses novel title as directory name.")
+    
+    parser.add_argument("--use-selenium", 
+                    action="store_true",
+                    help="Use Selenium WebDriver instead of CloudScraper for bypassing Cloudflare")
     
     args = parser.parse_args()
     main(args) # Pass the parsed args object to main

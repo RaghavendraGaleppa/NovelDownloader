@@ -237,6 +237,11 @@ def main():
         '-o', '--output-path',
         help='Custom output directory path. If not specified, uses Novels/novel_title'
     )
+    scrape_parser.add_argument(
+        '--use-selenium', 
+        action="store_true",
+        help="Use Selenium WebDriver instead of CloudScraper for bypassing Cloudflare"
+    )
     scrape_parser.set_defaults(func=cmd_scrape)
     
     # ===== VALIDATE SUBCOMMAND =====
