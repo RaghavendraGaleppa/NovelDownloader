@@ -542,8 +542,35 @@ def main(args: argparse.Namespace):
                     output_dir_path = os.path.join(base_output_dir, "Raws")
 
             if current_url is None:
-                print("Progress data indicates task was already completed.")
-                return
+                print("Progress data indicates task was previously completed. Checking for new chapters...")
+                # Check if there are new chapters available by re-scraping the last URL
+                last_scraped_url = progress_doc.get('last_scraped_url')
+                
+                if last_scraped_url:
+                    print(f"Checking last scraped URL for new chapters: {last_scraped_url}")
+                    
+                    try:
+                        # Scrape the last URL to see if there's a new next chapter
+                        html_content = scrape_chapter(last_scraped_url, use_selenium=args.use_selenium)
+                        if html_content:
+                            new_next_url = get_next_chapter_url(html_content, last_scraped_url)
+                            if new_next_url:
+                                print(f"🎉 Found new chapter! Will continue from: {new_next_url}")
+                                current_url = new_next_url
+                                # Update progress to reflect the new URL to scrape
+                                _save_current_progress(novel_id, last_scraped_url, current_url, last_known_chapter_num)
+                            else:
+                                print("No new chapters found. Novel appears to be up to date.")
+                                return
+                        else:
+                            print("Failed to re-scrape last URL. Unable to check for new chapters.")
+                            return
+                    except Exception as e:
+                        print(f"Error while checking for new chapters: {e}")
+                        return
+                else:
+                    print("No last scraped URL available. Cannot check for new chapters.")
+                    return
         else:
             # Novel exists but no progress. Start from beginning, but need a URL.
             if not start_url_param:
