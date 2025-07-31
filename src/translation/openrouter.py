@@ -26,7 +26,7 @@ api_providers = {
     },
     "google": {
         "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
-        "model_names": ["gemini-2.0-flash"]
+        "model_names": ["gemini-2.5-flash"]
     },
     "nvidia": {
         "url": "https://integrate.api.nvidia.com/v1/chat/completions",
@@ -149,7 +149,7 @@ def translate_chinese_to_english(text_to_translate: str, key_override: dict | No
                 
                 if response_data and response_data.get("candidates") and response_data["candidates"][0].get("content"):
                     translated_text = response_data["candidates"][0]["content"]["parts"][0]["text"].strip()
-                    CONSOLE.print(f"✅ Success with [bold cyan]{key_name}[/bold cyan] using Google Gemini.", style="dim")
+                    CONSOLE.print(f"✅ Success with [bold cyan]{key_name}[/bold cyan] using Google Gemini, model: {api_url.split('/')[-1]}", style="dim")
                     return translated_text, key_name
                 else:
                     CONSOLE.print(f"⚠️  Warning: No translation found in Google API response. Response: {response_data}", style="yellow")

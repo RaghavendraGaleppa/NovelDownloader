@@ -75,7 +75,8 @@ def cmd_translate(args):
         workers=args.workers,
         skip_validation=args.skip_validation ,
         wait_for_new_chapters=True,
-        retry_from_chapter=args.retry_from_chapter
+        retry_from_chapter=args.retry_from_chapter,
+        max_translations=args.max_translations
     )
 
 
@@ -292,6 +293,11 @@ def main():
         type=int,
         help="Retry from a specific chapter number. This will resume the translation from the given chapter number."
     )
+    translate_parser.add_argument(
+        "-m", "--max-translations",
+        type=int,
+        help="Maximum number of chapters to translate in this session. If not specified, translates all remaining chapters."
+    )
     translate_parser.set_defaults(func=cmd_translate)
     
     # ===== CONVERT SUBCOMMAND =====
@@ -374,6 +380,9 @@ def main():
         print("# Translate scraped chapters by title:")
         print('python tool.py translate -n "My Awesome Novel" -w 2')
         print()
+        print("# Translate only 10 chapters:")
+        print('python tool.py translate -n "My Awesome Novel" -w 2 -m 10')
+        print()
         print("# Convert to EPUB:")
         print('python tool.py convert -f "./Novels/Novel_Title/Novel_Title-English" -o "novel.epub" -t "Novel Title" -a "Author Name"')
         print()
@@ -383,7 +392,7 @@ def main():
         print('python tool.py scrape --novel-title "My Novel"  # Resume if needed')
         print('python tool.py info -d "./Novels/My_Novel"  # Check progress')
         print('python tool.py list  # See all novels in DB')
-        print('python tool.py translate -n "My Novel" -w 2')
+        print('python tool.py translate -n "My Novel" -w 2 -m 20  # Translate 20 chapters')
         print('python tool.py convert -f "./Novels/My_Novel/My_Novel-English" -o "my_novel.epub" -t "My Novel" -a "Author"')
         return
     

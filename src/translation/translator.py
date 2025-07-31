@@ -201,7 +201,7 @@ def _process_single_chapter_from_db(
         raise e  # Re-raise the exception to be caught by the main loop
 
 
-def translate_novel_by_id(novel_id: str, workers: int = 1, skip_validation: bool = False, wait_for_new_chapters: bool = False, retry_from_chapter: Optional[int] = None):
+def translate_novel_by_id(novel_id: str, workers: int = 1, skip_validation: bool = False, wait_for_new_chapters: bool = False, retry_from_chapter: Optional[int] = None, max_translations: Optional[int] = None):
     
     """
     Translates a novel using the new database-driven approach.
@@ -251,6 +251,12 @@ def translate_novel_by_id(novel_id: str, workers: int = 1, skip_validation: bool
             chap_id for chap_id in all_raw_chapter_ids_sorted if chap_id not in completed_raw_ids
         ]
 
+        # 4. Apply max_translations limit if specified
+        original_chapters_count = len(chapters_to_process_ids)
+        if max_translations is not None and len(chapters_to_process_ids) > max_translations:
+            chapters_to_process_ids = chapters_to_process_ids[:max_translations]
+            console.print(f"🎯 Limiting translation to {max_translations} chapters (out of {original_chapters_count} remaining).", style="yellow")
+
         console.print(f"Found {len(all_raw_chapter_ids_sorted)} total raw chapters.", style="blue")
         console.print(f"Found {len(completed_raw_ids)} already completed chapters.", style="blue")
         console.print(f"Found {len(chapters_to_process_ids)} chapters to translate.", style="bold blue")
@@ -259,7 +265,7 @@ def translate_novel_by_id(novel_id: str, workers: int = 1, skip_validation: bool
             console.print("All chapters already translated.", style="green")
             return
 
-        # 4. Initialize/update the main progress document
+        # 5. Initialize/update the main progress document
         db.translation_progress.update_one(
             {"novel_id": novel_object_id},
             {"$set": {
