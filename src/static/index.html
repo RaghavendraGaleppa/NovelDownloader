@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#1a1a2e">
+    <meta name="mobile-web-app-capable" content="yes">
+    <title>Novel Library</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fuse.js@7.0.0"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'ink': '#1a1a2e',
+                        'parchment': '#f5f0e8',
+                        'gold': '#d4a574',
+                        'crimson': '#8b2635',
+                        'jade': '#2d6a4f',
+                    },
+                    fontFamily: {
+                        'serif': ['Crimson Pro', 'Georgia', 'serif'],
+                        'mono': ['JetBrains Mono', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Safe area insets for notched phones */
+        :root {
+            --sat: env(safe-area-inset-top);
+            --sar: env(safe-area-inset-right);
+            --sab: env(safe-area-inset-bottom);
+            --sal: env(safe-area-inset-left);
+        }
+        
+        * {
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        html, body {
+            overscroll-behavior: none;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #1a1a2e 100%);
+            min-height: 100vh;
+            min-height: -webkit-fill-available;
+            padding-top: var(--sat);
+            padding-left: var(--sal);
+            padding-right: var(--sar);
+            padding-bottom: var(--sab);
+        }
+        
+        .novel-card {
+            background: linear-gradient(145deg, rgba(245, 240, 232, 0.95), rgba(235, 225, 210, 0.9));
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .novel-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #8b2635, #d4a574, #2d6a4f);
+            transform: scaleX(0);
+            transition: transform 0.3s ease;
+        }
+        
+        .novel-card:hover::before {
+            transform: scaleX(1);
+        }
+        
+        .novel-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        }
+        
+        /* Touch-friendly on mobile */
+        @media (max-width: 768px) {
+            .novel-card:active {
+                transform: scale(0.98);
+            }
+            
+            .novel-card:hover {
+                transform: none;
+            }
+            
+            .novel-card::before {
+                transform: scaleX(1);
+            }
+        }
+        
+        .search-container {
+            background: rgba(245, 240, 232, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(212, 165, 116, 0.3);
+        }
+        
+        .search-input {
+            background: rgba(26, 26, 46, 0.8);
+            border: 2px solid rgba(212, 165, 116, 0.3);
+            transition: all 0.3s ease;
+        }
+        
+        .search-input:focus {
+            border-color: #d4a574;
+            box-shadow: 0 0 20px rgba(212, 165, 116, 0.2);
+        }
+        
+        .progress-bar {
+            background: linear-gradient(90deg, #2d6a4f, #40916c);
+        }
+        
+        .loading-spinner {
+            border: 3px solid rgba(212, 165, 116, 0.2);
+            border-top-color: #d4a574;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.4s ease forwards;
+        }
+        
+        .stagger-1 { animation-delay: 0.05s; }
+        .stagger-2 { animation-delay: 0.1s; }
+        .stagger-3 { animation-delay: 0.15s; }
+        .stagger-4 { animation-delay: 0.2s; }
+        .stagger-5 { animation-delay: 0.25s; }
+    </style>
+</head>
+<body class="font-serif text-parchment">
+    <!-- Header -->
+    <header class="py-12 px-6 text-center">
+        <h1 class="text-5xl md:text-6xl font-bold mb-4 tracking-tight">
+            <span class="text-gold">Novel</span> Library
+        </h1>
+        <p class="text-parchment/60 text-lg max-w-xl mx-auto">
+            Your collection of translated Chinese novels, ready to explore
+        </p>
+    </header>
+
+    <!-- Search Section -->
+    <section class="max-w-3xl mx-auto px-6 mb-12">
+        <div class="search-container rounded-2xl p-6">
+            <div class="relative">
+                <input 
+                    type="text" 
+                    id="searchInput"
+                    class="search-input w-full px-6 py-4 pl-14 rounded-xl text-parchment text-lg placeholder-parchment/40 focus:outline-none"
+                    placeholder="Search novels by title..."
+                    autocomplete="off"
+                >
+                <svg class="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                </svg>
+                <div id="searchHint" class="absolute right-5 top-1/2 -translate-y-1/2 text-sm text-parchment/40 font-mono hidden">
+                    <span id="resultCount">0</span> novels
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Stats Bar -->
+    <section class="max-w-6xl mx-auto px-6 mb-8">
+        <div class="flex flex-wrap gap-6 justify-center text-sm font-mono">
+            <div class="flex items-center gap-2">
+                <span class="w-3 h-3 rounded-full bg-jade"></span>
+                <span class="text-parchment/60">Total Novels: <span id="totalNovels" class="text-jade font-bold">-</span></span>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="w-3 h-3 rounded-full bg-gold"></span>
+                <span class="text-parchment/60">Total Raw: <span id="totalRaw" class="text-gold font-bold">-</span></span>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="w-3 h-3 rounded-full bg-crimson"></span>
+                <span class="text-parchment/60">Total Translated: <span id="totalTranslated" class="text-crimson font-bold">-</span></span>
+            </div>
+        </div>
+    </section>
+
+    <!-- Loading State -->
+    <div id="loadingState" class="flex justify-center py-20">
+        <div class="loading-spinner w-12 h-12 rounded-full"></div>
+    </div>
+
+    <!-- Error State -->
+    <div id="errorState" class="hidden max-w-md mx-auto px-6 py-12 text-center">
+        <div class="text-6xl mb-4">📚</div>
+        <h2 class="text-2xl font-bold text-crimson mb-2">Unable to Load Library</h2>
+        <p class="text-parchment/60 mb-6" id="errorMessage">Could not connect to the server.</p>
+        <button onclick="loadNovels()" class="px-6 py-3 bg-gold text-ink rounded-lg font-semibold hover:bg-gold/80 transition-colors">
+            Try Again
+        </button>
+    </div>
+
+    <!-- Empty State -->
+    <div id="emptyState" class="hidden max-w-md mx-auto px-6 py-12 text-center">
+        <div class="text-6xl mb-4">📖</div>
+        <h2 class="text-2xl font-bold text-gold mb-2">No Novels Found</h2>
+        <p class="text-parchment/60">Your library is empty. Start by scraping some novels!</p>
+    </div>
+
+    <!-- No Search Results -->
+    <div id="noResultsState" class="hidden max-w-md mx-auto px-6 py-12 text-center">
+        <div class="text-6xl mb-4">🔍</div>
+        <h2 class="text-2xl font-bold text-gold mb-2">No Matches Found</h2>
+        <p class="text-parchment/60">Try a different search term.</p>
+    </div>
+
+    <!-- Novels Grid -->
+    <main class="max-w-6xl mx-auto px-6 pb-20">
+        <div id="novelsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- Novel cards will be inserted here -->
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="text-center py-8 text-parchment/40 text-sm font-mono">
+        <p>Novel Downloader & Reader</p>
+    </footer>
+
+    <script>
+        // State
+        let allNovels = [];
+        let fuse = null;
+        
+        // DOM Elements
+        const searchInput = document.getElementById('searchInput');
+        const searchHint = document.getElementById('searchHint');
+        const resultCount = document.getElementById('resultCount');
+        const novelsGrid = document.getElementById('novelsGrid');
+        const loadingState = document.getElementById('loadingState');
+        const errorState = document.getElementById('errorState');
+        const emptyState = document.getElementById('emptyState');
+        const noResultsState = document.getElementById('noResultsState');
+        const errorMessage = document.getElementById('errorMessage');
+        
+        // Stats elements
+        const totalNovels = document.getElementById('totalNovels');
+        const totalRaw = document.getElementById('totalRaw');
+        const totalTranslated = document.getElementById('totalTranslated');
+
+        // Initialize Fuse.js for fuzzy search
+        function initFuse(novels) {
+            fuse = new Fuse(novels, {
+                keys: ['name'],
+                threshold: 0.4,
+                distance: 100,
+                includeScore: true
+            });
+        }
+
+        // Show/hide states
+        function showState(state) {
+            loadingState.classList.add('hidden');
+            errorState.classList.add('hidden');
+            emptyState.classList.add('hidden');
+            noResultsState.classList.add('hidden');
+            novelsGrid.classList.add('hidden');
+            
+            if (state === 'loading') loadingState.classList.remove('hidden');
+            else if (state === 'error') errorState.classList.remove('hidden');
+            else if (state === 'empty') emptyState.classList.remove('hidden');
+            else if (state === 'noResults') noResultsState.classList.remove('hidden');
+            else if (state === 'grid') novelsGrid.classList.remove('hidden');
+        }
+
+        // Create novel card HTML
+        function createNovelCard(novel, index) {
+            const rawCount = novel.raw_chapters_count || 0;
+            const translatedCount = novel.translated_chapters_count || 0;
+            const progress = rawCount > 0 ? Math.round((translatedCount / rawCount) * 100) : 0;
+            const staggerClass = `stagger-${(index % 5) + 1}`;
+            
+            return `
+                <a href="/novel.html?id=${novel.id}" class="novel-card rounded-xl p-6 cursor-pointer fade-in opacity-0 ${staggerClass}">
+                    <h3 class="text-xl font-bold text-ink mb-3 line-clamp-2 leading-tight">${novel.name}</h3>
+                    
+                    <div class="space-y-2 mb-4">
+                        <div class="flex justify-between text-sm">
+                            <span class="text-ink/60">Raw Chapters</span>
+                            <span class="font-mono font-bold text-ink">${rawCount}</span>
+                        </div>
+                        <div class="flex justify-between text-sm">
+                            <span class="text-ink/60">Translated</span>
+                            <span class="font-mono font-bold text-jade">${translatedCount}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="relative">
+                        <div class="h-2 bg-ink/10 rounded-full overflow-hidden">
+                            <div class="progress-bar h-full rounded-full transition-all duration-500" style="width: ${progress}%"></div>
+                        </div>
+                        <span class="absolute right-0 -top-5 text-xs font-mono text-ink/50">${progress}%</span>
+                    </div>
+                </a>
+            `;
+        }
+
+        // Render novels
+        function renderNovels(novels) {
+            if (novels.length === 0) {
+                if (searchInput.value.trim()) {
+                    showState('noResults');
+                } else {
+                    showState('empty');
+                }
+                return;
+            }
+            
+            novelsGrid.innerHTML = novels.map((novel, i) => createNovelCard(novel, i)).join('');
+            showState('grid');
+            
+            // Update result count
+            resultCount.textContent = novels.length;
+            searchHint.classList.remove('hidden');
+        }
+
+        // Update stats
+        function updateStats(novels) {
+            totalNovels.textContent = novels.length;
+            totalRaw.textContent = novels.reduce((sum, n) => sum + (n.raw_chapters_count || 0), 0);
+            totalTranslated.textContent = novels.reduce((sum, n) => sum + (n.translated_chapters_count || 0), 0);
+        }
+
+        // Search handler
+        function handleSearch() {
+            const query = searchInput.value.trim();
+            
+            if (!query) {
+                renderNovels(allNovels);
+                return;
+            }
+            
+            const results = fuse.search(query);
+            const matchedNovels = results.map(r => r.item);
+            renderNovels(matchedNovels);
+        }
+
+        // Load novels from API
+        async function loadNovels() {
+            showState('loading');
+            
+            try {
+                const response = await fetch('/novels');
+                const data = await response.json();
+                
+                if (!data.success) {
+                    throw new Error(data.error || 'Failed to load novels');
+                }
+                
+                allNovels = data.data || [];
+                
+                if (allNovels.length === 0) {
+                    showState('empty');
+                    return;
+                }
+                
+                initFuse(allNovels);
+                updateStats(allNovels);
+                renderNovels(allNovels);
+                
+            } catch (error) {
+                console.error('Error loading novels:', error);
+                errorMessage.textContent = error.message || 'Could not connect to the server.';
+                showState('error');
+            }
+        }
+
+        // Event listeners
+        searchInput.addEventListener('input', handleSearch);
+        
+        // Keyboard shortcut: focus search on '/'
+        document.addEventListener('keydown', (e) => {
+            if (e.key === '/' && document.activeElement !== searchInput) {
+                e.preventDefault();
+                searchInput.focus();
+            }
+            // ESC to clear search
+            if (e.key === 'Escape' && document.activeElement === searchInput) {
+                searchInput.value = '';
+                handleSearch();
+                searchInput.blur();
+            }
+        });
+
+        // Initialize
+        loadNovels();
+    </script>
+</body>
+</html>
+

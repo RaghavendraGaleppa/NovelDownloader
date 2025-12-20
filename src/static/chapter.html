@@ -1,0 +1,1211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#1a1a2e">
+    <meta name="mobile-web-app-capable" content="yes">
+    <title>Reading - Loading...</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,500;0,7..72,600;1,7..72,400&family=Merriweather:ital,wght@0,400;0,700;1,400&family=Lora:ital,wght@0,400;0,500;0,600;1,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'ink': '#1a1a2e',
+                        'parchment': '#f5f0e8',
+                        'gold': '#d4a574',
+                        'crimson': '#8b2635',
+                        'jade': '#2d6a4f',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Safe area insets for notched phones */
+        :root {
+            --sat: env(safe-area-inset-top);
+            --sar: env(safe-area-inset-right);
+            --sab: env(safe-area-inset-bottom);
+            --sal: env(safe-area-inset-left);
+        }
+        
+        /* Theme definitions */
+        :root {
+            --bg-color: #f5f0e8;
+            --text-color: #1a1a2e;
+            --accent-color: #d4a574;
+            --secondary-bg: #ebe5db;
+            --border-color: rgba(26, 26, 46, 0.1);
+        }
+        
+        [data-theme="dark"] {
+            --bg-color: #1a1a2e;
+            --text-color: #e8e4dc;
+            --accent-color: #d4a574;
+            --secondary-bg: #252542;
+            --border-color: rgba(232, 228, 220, 0.1);
+        }
+        
+        [data-theme="sepia"] {
+            --bg-color: #f4ecd8;
+            --text-color: #5c4b37;
+            --accent-color: #8b6914;
+            --secondary-bg: #ebe3cf;
+            --border-color: rgba(92, 75, 55, 0.1);
+        }
+        
+        [data-theme="night"] {
+            --bg-color: #0d1117;
+            --text-color: #c9d1d9;
+            --accent-color: #58a6ff;
+            --secondary-bg: #161b22;
+            --border-color: rgba(201, 209, 217, 0.1);
+        }
+        
+        [data-theme="green"] {
+            --bg-color: #1e2d24;
+            --text-color: #c8e6c9;
+            --accent-color: #81c784;
+            --secondary-bg: #263d2d;
+            --border-color: rgba(200, 230, 201, 0.1);
+        }
+        
+        * {
+            -webkit-tap-highlight-color: transparent;
+            -webkit-touch-callout: none;
+        }
+        
+        html, body {
+            overscroll-behavior: none;
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            transition: background-color 0.3s ease, color 0.3s ease;
+            padding-top: var(--sat);
+            padding-left: var(--sal);
+            padding-right: var(--sar);
+            min-height: 100vh;
+            min-height: -webkit-fill-available;
+        }
+        
+        /* Brightness overlay */
+        .brightness-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: black;
+            pointer-events: none;
+            z-index: 9999;
+            transition: opacity 0.3s ease;
+        }
+        
+        /* Font families */
+        .font-crimson { font-family: 'Crimson Pro', Georgia, serif; }
+        .font-literata { font-family: 'Literata', Georgia, serif; }
+        .font-merriweather { font-family: 'Merriweather', Georgia, serif; }
+        .font-lora { font-family: 'Lora', Georgia, serif; }
+        .font-source { font-family: 'Source Serif 4', Georgia, serif; }
+        .font-inter { font-family: 'Inter', -apple-system, sans-serif; }
+        
+        /* Reading content styles */
+        .reading-content {
+            line-height: 1.8;
+            letter-spacing: 0.01em;
+        }
+        
+        .reading-content p {
+            margin-bottom: 1.5em;
+            text-indent: 2em;
+        }
+        
+        .reading-content p:first-of-type {
+            text-indent: 0;
+        }
+        
+        /* Control panel */
+        .control-panel {
+            background: var(--secondary-bg);
+            border: 1px solid var(--border-color);
+            transition: all 0.3s ease;
+        }
+        
+        .control-btn {
+            background: var(--secondary-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+            transition: all 0.2s ease;
+            min-height: 44px; /* Touch-friendly minimum */
+            min-width: 44px;
+        }
+        
+        .control-btn:hover, .control-btn:active {
+            background: var(--accent-color);
+            color: var(--bg-color);
+            border-color: var(--accent-color);
+        }
+        
+        .control-btn.active {
+            background: var(--accent-color);
+            color: var(--bg-color);
+            border-color: var(--accent-color);
+        }
+        
+        /* Theme buttons */
+        .theme-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: 3px solid transparent;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+        
+        .theme-btn:active, .theme-btn.active {
+            transform: scale(1.1);
+            border-color: var(--accent-color);
+        }
+        
+        .theme-light { background: #f5f0e8; }
+        .theme-dark { background: #1a1a2e; }
+        .theme-sepia { background: #f4ecd8; }
+        .theme-night { background: #0d1117; }
+        .theme-green { background: #1e2d24; }
+        
+        /* Slider styles - larger for mobile */
+        .slider {
+            -webkit-appearance: none;
+            appearance: none;
+            height: 8px;
+            border-radius: 4px;
+            background: var(--border-color);
+            outline: none;
+        }
+        
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: var(--accent-color);
+            cursor: pointer;
+        }
+        
+        .slider::-moz-range-thumb {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: var(--accent-color);
+            cursor: pointer;
+            border: none;
+        }
+        
+        /* Navigation buttons */
+        .nav-btn {
+            background: var(--secondary-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+            transition: all 0.2s ease;
+            min-height: 44px;
+        }
+        
+        .nav-btn:active:not(:disabled) {
+            background: var(--accent-color);
+            color: var(--bg-color);
+            border-color: var(--accent-color);
+            transform: scale(0.98);
+        }
+        
+        .nav-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+        
+        /* Top bar - auto-hide on scroll */
+        .top-bar {
+            transform: translateY(0);
+            transition: transform 0.3s ease;
+        }
+        
+        .top-bar.hidden {
+            transform: translateY(-100%);
+        }
+        
+        /* Bottom sheet for mobile settings */
+        .bottom-sheet-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 90;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+        
+        .bottom-sheet-overlay.open {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .bottom-sheet {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            background: var(--secondary-bg);
+            border-top-left-radius: 20px;
+            border-top-right-radius: 20px;
+            transform: translateY(100%);
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            max-height: 85vh;
+            overflow-y: auto;
+            padding-bottom: calc(var(--sab) + 16px);
+        }
+        
+        .bottom-sheet.open {
+            transform: translateY(0);
+        }
+        
+        .bottom-sheet-handle {
+            width: 40px;
+            height: 4px;
+            background: var(--border-color);
+            border-radius: 2px;
+            margin: 12px auto;
+        }
+        
+        /* Loading spinner */
+        .loading-spinner {
+            border: 3px solid var(--border-color);
+            border-top-color: var(--accent-color);
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* Progress bar */
+        .reading-progress {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 3px;
+            background: var(--accent-color);
+            z-index: 200;
+            transition: width 0.1s ease-out;
+        }
+        
+        /* Bottom navigation bar for mobile */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 50;
+            background: var(--secondary-bg);
+            border-top: 1px solid var(--border-color);
+            padding-bottom: var(--sab);
+            transform: translateY(0);
+            transition: transform 0.3s ease;
+        }
+        
+        .bottom-nav.hidden {
+            transform: translateY(100%);
+        }
+        
+        .bottom-nav-btn {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 10px 8px;
+            color: var(--text-color);
+            opacity: 0.6;
+            transition: all 0.2s ease;
+            min-height: 56px;
+        }
+        
+        .bottom-nav-btn:active {
+            opacity: 1;
+            background: var(--accent-color);
+            color: var(--bg-color);
+        }
+        
+        .bottom-nav-btn.disabled {
+            opacity: 0.3;
+            pointer-events: none;
+        }
+        
+        .bottom-nav-btn svg {
+            width: 24px;
+            height: 24px;
+            margin-bottom: 2px;
+        }
+        
+        .bottom-nav-btn span {
+            font-size: 10px;
+            font-weight: 600;
+        }
+        
+        /* Tap zones for navigation */
+        .tap-zone {
+            position: fixed;
+            top: 60px;
+            bottom: 80px;
+            width: 20%;
+            z-index: 10;
+            cursor: pointer;
+        }
+        
+        .tap-zone-left {
+            left: 0;
+        }
+        
+        .tap-zone-right {
+            right: 0;
+        }
+        
+        .tap-zone-center {
+            left: 20%;
+            right: 20%;
+            width: auto;
+        }
+        
+        /* Swipe indicator */
+        .swipe-indicator {
+            position: fixed;
+            top: 50%;
+            transform: translateY(-50%);
+            padding: 16px;
+            background: var(--accent-color);
+            color: var(--bg-color);
+            border-radius: 50%;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+            z-index: 80;
+            pointer-events: none;
+        }
+        
+        .swipe-indicator.left {
+            left: 16px;
+        }
+        
+        .swipe-indicator.right {
+            right: 16px;
+        }
+        
+        .swipe-indicator.visible {
+            opacity: 0.9;
+        }
+        
+        /* Chapter title marquee for mobile */
+        @media (max-width: 640px) {
+            .chapter-title-nav {
+                max-width: 150px;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+        }
+        
+        /* Hide desktop elements on mobile */
+        @media (max-width: 768px) {
+            .desktop-only {
+                display: none !important;
+            }
+        }
+        
+        /* Hide mobile elements on desktop */
+        @media (min-width: 769px) {
+            .mobile-only {
+                display: none !important;
+            }
+            
+            .bottom-nav {
+                display: none !important;
+            }
+            
+            .tap-zone {
+                display: none !important;
+            }
+        }
+        
+        /* Fullscreen mode */
+        .fullscreen-mode .top-bar,
+        .fullscreen-mode .bottom-nav {
+            transform: translateY(-100%);
+        }
+        
+        .fullscreen-mode .bottom-nav {
+            transform: translateY(100%);
+        }
+        
+        .fullscreen-mode .reading-progress {
+            opacity: 0;
+        }
+    </style>
+</head>
+<body class="font-crimson" data-theme="light">
+    <!-- Brightness overlay -->
+    <div class="brightness-overlay" id="brightnessOverlay" style="opacity: 0;"></div>
+    
+    <!-- Reading progress bar -->
+    <div class="reading-progress" id="readingProgress" style="width: 0%;"></div>
+
+    <!-- Swipe indicators -->
+    <div class="swipe-indicator left" id="swipeLeft">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+        </svg>
+    </div>
+    <div class="swipe-indicator right" id="swipeRight">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+        </svg>
+    </div>
+
+    <!-- Tap zones for mobile navigation -->
+    <div class="tap-zone tap-zone-left" id="tapZoneLeft"></div>
+    <div class="tap-zone tap-zone-center" id="tapZoneCenter"></div>
+    <div class="tap-zone tap-zone-right" id="tapZoneRight"></div>
+
+    <!-- Top Navigation Bar -->
+    <nav class="top-bar fixed top-0 left-0 right-0 z-40 px-4 py-2" id="topBar" style="background: var(--secondary-bg); border-bottom: 1px solid var(--border-color); padding-top: calc(var(--sat) + 8px);">
+        <div class="max-w-4xl mx-auto flex items-center justify-between gap-2">
+            <!-- Back button -->
+            <a id="backToNovel" href="/" class="nav-btn px-3 py-2 rounded-lg flex items-center gap-2 text-sm font-semibold">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                </svg>
+                <span class="hidden sm:inline">Back</span>
+            </a>
+            
+            <!-- Chapter info (center) -->
+            <div class="flex-1 text-center min-w-0">
+                <span id="navChapterTitle" class="chapter-title-nav text-sm font-semibold block truncate" style="color: var(--text-color); opacity: 0.7;">
+                    Loading...
+                </span>
+            </div>
+            
+            <!-- Settings button (desktop) -->
+            <button id="settingsBtn" class="nav-btn px-3 py-2 rounded-lg flex items-center gap-2 text-sm font-semibold desktop-only">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                </svg>
+                <span class="hidden sm:inline">Settings</span>
+            </button>
+            
+            <!-- Chapter progress (mobile) -->
+            <div id="chapterProgress" class="mobile-only text-xs font-mono opacity-50" style="color: var(--text-color);">
+                --/--
+            </div>
+        </div>
+    </nav>
+
+    <!-- Desktop Settings Panel -->
+    <div id="settingsPanel" class="settings-panel fixed top-16 right-4 z-50 w-80 max-w-[calc(100vw-2rem)] desktop-only" style="transform: translateY(-10px); opacity: 0; visibility: hidden; transition: all 0.3s ease;">
+        <div class="control-panel rounded-xl p-5 shadow-2xl">
+            <h3 class="text-lg font-bold mb-4 flex items-center gap-2" style="color: var(--text-color);">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/>
+                </svg>
+                Reading Settings
+            </h3>
+            
+            <!-- Settings content (same as mobile) -->
+            <div class="settings-content"></div>
+        </div>
+    </div>
+
+    <!-- Mobile Bottom Sheet Settings -->
+    <div class="bottom-sheet-overlay mobile-only" id="bottomSheetOverlay"></div>
+    <div class="bottom-sheet mobile-only" id="bottomSheet">
+        <div class="bottom-sheet-handle"></div>
+        <div class="px-5 pb-4">
+            <h3 class="text-lg font-bold mb-4 flex items-center gap-2" style="color: var(--text-color);">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/>
+                </svg>
+                Reading Settings
+            </h3>
+            
+            <!-- Font Size -->
+            <div class="mb-6">
+                <label class="block text-sm font-semibold mb-3 opacity-70">Font Size</label>
+                <div class="flex items-center gap-4">
+                    <button id="fontSizeDown" class="control-btn w-12 h-12 rounded-xl text-xl font-bold">A-</button>
+                    <input type="range" id="fontSizeSlider" class="slider flex-1" min="14" max="28" value="18">
+                    <button id="fontSizeUp" class="control-btn w-12 h-12 rounded-xl text-xl font-bold">A+</button>
+                </div>
+                <div class="text-center text-sm mt-2 opacity-50 font-mono"><span id="fontSizeValue">18</span>px</div>
+            </div>
+            
+            <!-- Font Family -->
+            <div class="mb-6">
+                <label class="block text-sm font-semibold mb-3 opacity-70">Font Style</label>
+                <div class="grid grid-cols-3 gap-2">
+                    <button data-font="font-crimson" class="control-btn font-btn py-3 px-3 rounded-xl text-sm active" style="font-family: 'Crimson Pro', serif;">Crimson</button>
+                    <button data-font="font-literata" class="control-btn font-btn py-3 px-3 rounded-xl text-sm" style="font-family: 'Literata', serif;">Literata</button>
+                    <button data-font="font-merriweather" class="control-btn font-btn py-3 px-3 rounded-xl text-sm" style="font-family: 'Merriweather', serif;">Merri</button>
+                    <button data-font="font-lora" class="control-btn font-btn py-3 px-3 rounded-xl text-sm" style="font-family: 'Lora', serif;">Lora</button>
+                    <button data-font="font-source" class="control-btn font-btn py-3 px-3 rounded-xl text-sm" style="font-family: 'Source Serif 4', serif;">Source</button>
+                    <button data-font="font-inter" class="control-btn font-btn py-3 px-3 rounded-xl text-sm" style="font-family: 'Inter', sans-serif;">Inter</button>
+                </div>
+            </div>
+            
+            <!-- Theme -->
+            <div class="mb-6">
+                <label class="block text-sm font-semibold mb-3 opacity-70">Theme</label>
+                <div class="flex items-center justify-between gap-3">
+                    <button data-theme="light" class="theme-btn theme-light active" title="Light"></button>
+                    <button data-theme="sepia" class="theme-btn theme-sepia" title="Sepia"></button>
+                    <button data-theme="dark" class="theme-btn theme-dark" title="Dark"></button>
+                    <button data-theme="night" class="theme-btn theme-night" title="Night"></button>
+                    <button data-theme="green" class="theme-btn theme-green" title="Green"></button>
+                </div>
+            </div>
+            
+            <!-- Line Height -->
+            <div class="mb-6">
+                <label class="block text-sm font-semibold mb-3 opacity-70">Line Spacing</label>
+                <div class="flex items-center gap-4">
+                    <span class="text-xs opacity-50">Tight</span>
+                    <input type="range" id="lineHeightSlider" class="slider flex-1" min="1.4" max="2.4" step="0.1" value="1.8">
+                    <span class="text-xs opacity-50">Loose</span>
+                </div>
+            </div>
+            
+            <!-- Brightness -->
+            <div class="mb-4">
+                <label class="block text-sm font-semibold mb-3 opacity-70">Brightness</label>
+                <div class="flex items-center gap-4">
+                    <svg class="w-5 h-5 opacity-50" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z"/>
+                    </svg>
+                    <input type="range" id="brightnessSlider" class="slider flex-1" min="0" max="60" value="0">
+                    <svg class="w-6 h-6 opacity-70" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clip-rule="evenodd"/>
+                    </svg>
+                </div>
+                <div class="text-center text-xs mt-2 opacity-40">Dim screen for night reading</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading State -->
+    <div id="loadingState" class="flex flex-col items-center justify-center min-h-screen pt-16">
+        <div class="loading-spinner w-12 h-12 rounded-full mb-4"></div>
+        <p style="color: var(--text-color); opacity: 0.6;">Loading chapter...</p>
+    </div>
+
+    <!-- Error State -->
+    <div id="errorState" class="hidden flex flex-col items-center justify-center min-h-screen pt-16 px-6">
+        <div class="text-6xl mb-4">📖</div>
+        <h2 class="text-2xl font-bold mb-2" style="color: var(--accent-color);">Unable to Load Chapter</h2>
+        <p class="mb-6 text-center opacity-60" id="errorMessage">Could not find the requested chapter.</p>
+        <a id="errorBackLink" href="/" class="nav-btn px-6 py-3 rounded-lg font-semibold">
+            Return to Novel
+        </a>
+    </div>
+
+    <!-- Main Reading Content -->
+    <main id="mainContent" class="hidden" style="padding-top: calc(var(--sat) + 60px); padding-bottom: calc(var(--sab) + 100px);">
+        <article class="mx-auto px-5" id="articleContainer" style="max-width: 680px;">
+            <!-- Chapter Header -->
+            <header class="mb-8 text-center">
+                <div class="text-sm font-mono mb-2 opacity-50" id="chapterNumber">Chapter 1</div>
+                <h1 class="text-2xl sm:text-3xl md:text-4xl font-bold leading-tight mb-3" id="chapterTitle" style="color: var(--accent-color);">
+                    Loading...
+                </h1>
+                <div class="flex items-center justify-center gap-3 text-sm opacity-50 flex-wrap">
+                    <span id="wordCount">-- words</span>
+                    <span>•</span>
+                    <span id="readTime">-- min read</span>
+                </div>
+            </header>
+            
+            <!-- Chapter Content -->
+            <div id="chapterContent" class="reading-content">
+                <!-- Content will be inserted here -->
+            </div>
+            
+            <!-- Chapter Footer Navigation (Desktop) -->
+            <footer class="mt-16 pt-8 desktop-only" style="border-top: 1px solid var(--border-color);">
+                <div class="flex items-center justify-between gap-4">
+                    <button id="prevChapterBtn" class="nav-btn flex-1 py-4 px-6 rounded-xl flex items-center justify-center gap-2 font-semibold">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                        </svg>
+                        <span>Previous</span>
+                    </button>
+                    
+                    <a id="tocLink" href="/" class="nav-btn py-4 px-6 rounded-xl flex items-center justify-center gap-2 font-semibold">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/>
+                        </svg>
+                        <span>Contents</span>
+                    </a>
+                    
+                    <button id="nextChapterBtn" class="nav-btn flex-1 py-4 px-6 rounded-xl flex items-center justify-center gap-2 font-semibold">
+                        <span>Next</span>
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                        </svg>
+                    </button>
+                </div>
+            </footer>
+        </article>
+    </main>
+
+    <!-- Mobile Bottom Navigation Bar -->
+    <nav class="bottom-nav mobile-only" id="bottomNav">
+        <div class="flex items-stretch">
+            <button id="mobilePrevBtn" class="bottom-nav-btn">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                </svg>
+                <span>Prev</span>
+            </button>
+            
+            <a id="mobileTocBtn" href="/" class="bottom-nav-btn">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/>
+                </svg>
+                <span>Contents</span>
+            </a>
+            
+            <button id="mobileSettingsBtn" class="bottom-nav-btn">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                </svg>
+                <span>Settings</span>
+            </button>
+            
+            <button id="mobileNextBtn" class="bottom-nav-btn">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                </svg>
+                <span>Next</span>
+            </button>
+        </div>
+    </nav>
+
+    <script>
+        // Get URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const novelId = urlParams.get('novel');
+        const chapterNumber = parseInt(urlParams.get('chapter'));
+        
+        // State
+        let novelData = null;
+        let currentChapter = chapterNumber;
+        let allChapters = [];
+        let prevChapter = null;
+        let nextChapter = null;
+        let isFullscreen = false;
+        let lastScrollY = 0;
+        let touchStartX = 0;
+        let touchStartY = 0;
+        
+        // DOM Elements
+        const loadingState = document.getElementById('loadingState');
+        const errorState = document.getElementById('errorState');
+        const mainContent = document.getElementById('mainContent');
+        const errorMessage = document.getElementById('errorMessage');
+        const errorBackLink = document.getElementById('errorBackLink');
+        
+        const topBar = document.getElementById('topBar');
+        const bottomNav = document.getElementById('bottomNav');
+        const navChapterTitle = document.getElementById('navChapterTitle');
+        const chapterNumberEl = document.getElementById('chapterNumber');
+        const chapterTitle = document.getElementById('chapterTitle');
+        const chapterContent = document.getElementById('chapterContent');
+        const chapterProgress = document.getElementById('chapterProgress');
+        const wordCount = document.getElementById('wordCount');
+        const readTime = document.getElementById('readTime');
+        const articleContainer = document.getElementById('articleContainer');
+        
+        // Navigation
+        const prevChapterBtn = document.getElementById('prevChapterBtn');
+        const nextChapterBtn = document.getElementById('nextChapterBtn');
+        const mobilePrevBtn = document.getElementById('mobilePrevBtn');
+        const mobileNextBtn = document.getElementById('mobileNextBtn');
+        const tocLink = document.getElementById('tocLink');
+        const mobileTocBtn = document.getElementById('mobileTocBtn');
+        const backToNovel = document.getElementById('backToNovel');
+        
+        // Settings
+        const settingsBtn = document.getElementById('settingsBtn');
+        const settingsPanel = document.getElementById('settingsPanel');
+        const mobileSettingsBtn = document.getElementById('mobileSettingsBtn');
+        const bottomSheet = document.getElementById('bottomSheet');
+        const bottomSheetOverlay = document.getElementById('bottomSheetOverlay');
+        
+        // Controls
+        const fontSizeSlider = document.getElementById('fontSizeSlider');
+        const fontSizeValue = document.getElementById('fontSizeValue');
+        const fontSizeUp = document.getElementById('fontSizeUp');
+        const fontSizeDown = document.getElementById('fontSizeDown');
+        const lineHeightSlider = document.getElementById('lineHeightSlider');
+        const brightnessSlider = document.getElementById('brightnessSlider');
+        const brightnessOverlay = document.getElementById('brightnessOverlay');
+        
+        const readingProgress = document.getElementById('readingProgress');
+        const swipeLeft = document.getElementById('swipeLeft');
+        const swipeRight = document.getElementById('swipeRight');
+        
+        // Tap zones
+        const tapZoneLeft = document.getElementById('tapZoneLeft');
+        const tapZoneCenter = document.getElementById('tapZoneCenter');
+        const tapZoneRight = document.getElementById('tapZoneRight');
+        
+        // Settings storage key
+        const SETTINGS_KEY = 'novelReaderSettings';
+        
+        // Default settings
+        const defaultSettings = {
+            fontSize: 18,
+            fontFamily: 'font-crimson',
+            theme: 'light',
+            lineHeight: 1.8,
+            brightness: 0
+        };
+        
+        // Load settings
+        function loadSettings() {
+            try {
+                const saved = localStorage.getItem(SETTINGS_KEY);
+                return saved ? { ...defaultSettings, ...JSON.parse(saved) } : defaultSettings;
+            } catch {
+                return defaultSettings;
+            }
+        }
+        
+        // Save settings
+        function saveSettings(settings) {
+            try {
+                localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+            } catch (e) {
+                console.warn('Could not save settings:', e);
+            }
+        }
+        
+        // Apply settings
+        function applySettings(settings) {
+            // Font size
+            chapterContent.style.fontSize = `${settings.fontSize}px`;
+            fontSizeSlider.value = settings.fontSize;
+            fontSizeValue.textContent = settings.fontSize;
+            
+            // Font family
+            document.body.className = settings.fontFamily;
+            document.querySelectorAll('.font-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.font === settings.fontFamily);
+            });
+            
+            // Theme
+            document.body.dataset.theme = settings.theme;
+            document.querySelectorAll('.theme-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.theme === settings.theme);
+            });
+            
+            // Update theme color meta tag
+            const themeColors = {
+                light: '#ebe5db',
+                dark: '#252542',
+                sepia: '#ebe3cf',
+                night: '#161b22',
+                green: '#263d2d'
+            };
+            document.querySelector('meta[name="theme-color"]').content = themeColors[settings.theme] || themeColors.light;
+            
+            // Line height
+            chapterContent.style.lineHeight = settings.lineHeight;
+            lineHeightSlider.value = settings.lineHeight;
+            
+            // Brightness
+            brightnessOverlay.style.opacity = settings.brightness / 100;
+            brightnessSlider.value = settings.brightness;
+        }
+        
+        // Get current settings
+        function getCurrentSettings() {
+            return {
+                fontSize: parseInt(fontSizeSlider.value),
+                fontFamily: document.body.className || 'font-crimson',
+                theme: document.body.dataset.theme || 'light',
+                lineHeight: parseFloat(lineHeightSlider.value),
+                brightness: parseInt(brightnessSlider.value)
+            };
+        }
+        
+        // Show/hide states
+        function showState(state) {
+            loadingState.classList.add('hidden');
+            errorState.classList.add('hidden');
+            mainContent.classList.add('hidden');
+            
+            if (state === 'loading') loadingState.classList.remove('hidden');
+            else if (state === 'error') errorState.classList.remove('hidden');
+            else if (state === 'content') mainContent.classList.remove('hidden');
+        }
+        
+        // Format content
+        function formatContent(content) {
+            const paragraphs = content.split(/\n+/).filter(p => p.trim());
+            return paragraphs.map(p => `<p>${p.trim()}</p>`).join('\n');
+        }
+        
+        // Calculate stats
+        function calculateReadStats(content) {
+            const words = content.split(/\s+/).filter(w => w.length > 0).length;
+            const minutes = Math.ceil(words / 200);
+            return { words, minutes };
+        }
+        
+        // Toggle fullscreen mode (hide bars)
+        function toggleFullscreen() {
+            isFullscreen = !isFullscreen;
+            document.body.classList.toggle('fullscreen-mode', isFullscreen);
+            topBar.classList.toggle('hidden', isFullscreen);
+            bottomNav.classList.toggle('hidden', isFullscreen);
+        }
+        
+        // Open/close bottom sheet
+        function openBottomSheet() {
+            bottomSheet.classList.add('open');
+            bottomSheetOverlay.classList.add('open');
+            document.body.style.overflow = 'hidden';
+        }
+        
+        function closeBottomSheet() {
+            bottomSheet.classList.remove('open');
+            bottomSheetOverlay.classList.remove('open');
+            document.body.style.overflow = '';
+        }
+        
+        // Update navigation
+        function updateNavigation() {
+            const currentIndex = allChapters.findIndex(c => c.chapter_number === currentChapter);
+            
+            // Find previous/next translated chapters
+            prevChapter = null;
+            nextChapter = null;
+            
+            for (let i = currentIndex - 1; i >= 0; i--) {
+                if (allChapters[i].is_translated) {
+                    prevChapter = allChapters[i];
+                    break;
+                }
+            }
+            
+            for (let i = currentIndex + 1; i < allChapters.length; i++) {
+                if (allChapters[i].is_translated) {
+                    nextChapter = allChapters[i];
+                    break;
+                }
+            }
+            
+            // Update desktop buttons
+            if (prevChapterBtn) {
+                prevChapterBtn.disabled = !prevChapter;
+                prevChapterBtn.onclick = () => prevChapter && navigateToChapter(prevChapter.chapter_number);
+            }
+            if (nextChapterBtn) {
+                nextChapterBtn.disabled = !nextChapter;
+                nextChapterBtn.onclick = () => nextChapter && navigateToChapter(nextChapter.chapter_number);
+            }
+            
+            // Update mobile buttons
+            mobilePrevBtn.classList.toggle('disabled', !prevChapter);
+            mobileNextBtn.classList.toggle('disabled', !nextChapter);
+            mobilePrevBtn.onclick = () => prevChapter && navigateToChapter(prevChapter.chapter_number);
+            mobileNextBtn.onclick = () => nextChapter && navigateToChapter(nextChapter.chapter_number);
+            
+            // Update chapter progress
+            const translatedChapters = allChapters.filter(c => c.is_translated);
+            const currentTranslatedIndex = translatedChapters.findIndex(c => c.chapter_number === currentChapter);
+            chapterProgress.textContent = `${currentTranslatedIndex + 1}/${translatedChapters.length}`;
+        }
+        
+        // Navigate to chapter
+        function navigateToChapter(chapterNum) {
+            window.location.href = `/chapter.html?novel=${novelId}&chapter=${chapterNum}`;
+        }
+        
+        // Load chapter
+        async function loadChapter() {
+            if (!novelId || !chapterNumber) {
+                errorMessage.textContent = 'Invalid chapter URL.';
+                showState('error');
+                return;
+            }
+            
+            showState('loading');
+            
+            try {
+                // Get novel info
+                const novelResponse = await fetch(`/novels/${novelId}`);
+                const novelResult = await novelResponse.json();
+                
+                if (!novelResult.success) throw new Error(novelResult.error || 'Failed to load novel info');
+                
+                novelData = novelResult.data;
+                allChapters = novelData.table_of_contents || [];
+                
+                // Update links
+                const novelPageUrl = `/novel.html?id=${novelId}`;
+                if (tocLink) tocLink.href = novelPageUrl;
+                mobileTocBtn.href = novelPageUrl;
+                backToNovel.href = novelPageUrl;
+                errorBackLink.href = novelPageUrl;
+                
+                // Fetch chapter content
+                const chapterResponse = await fetch(`/novels/${novelId}/chapters/${chapterNumber}`);
+                const chapterResult = await chapterResponse.json();
+                
+                if (!chapterResult.success) throw new Error(chapterResult.error || 'Failed to load chapter');
+                
+                const chapter = chapterResult.data;
+                
+                // Update page title
+                document.title = `Ch.${chapterNumber} - ${novelData.name}`;
+                
+                // Update UI
+                chapterNumberEl.textContent = `Chapter ${chapterNumber}`;
+                chapterTitle.textContent = chapter.title || `Chapter ${chapterNumber}`;
+                navChapterTitle.textContent = `Ch.${chapterNumber}`;
+                
+                // Format and display content
+                chapterContent.innerHTML = formatContent(chapter.content);
+                
+                // Calculate stats
+                const stats = calculateReadStats(chapter.content);
+                wordCount.textContent = `${stats.words.toLocaleString()} words`;
+                readTime.textContent = `${stats.minutes} min`;
+                
+                // Update navigation
+                updateNavigation();
+                
+                // Apply settings
+                applySettings(loadSettings());
+                
+                showState('content');
+                window.scrollTo(0, 0);
+                
+            } catch (error) {
+                console.error('Error:', error);
+                errorMessage.textContent = error.message;
+                showState('error');
+            }
+        }
+        
+        // Update reading progress
+        function updateReadingProgress() {
+            const scrollTop = window.scrollY;
+            const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+            const progress = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
+            readingProgress.style.width = `${Math.min(progress, 100)}%`;
+            
+            // Auto-hide/show bars on scroll (mobile)
+            if (window.innerWidth <= 768) {
+                const scrollDelta = scrollTop - lastScrollY;
+                
+                if (scrollDelta > 10 && scrollTop > 100) {
+                    topBar.classList.add('hidden');
+                    bottomNav.classList.add('hidden');
+                } else if (scrollDelta < -10 || scrollTop < 50) {
+                    topBar.classList.remove('hidden');
+                    bottomNav.classList.remove('hidden');
+                }
+            }
+            
+            lastScrollY = scrollTop;
+        }
+        
+        // Touch/swipe handling
+        function handleTouchStart(e) {
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+        }
+        
+        function handleTouchMove(e) {
+            if (!touchStartX) return;
+            
+            const touchX = e.touches[0].clientX;
+            const touchY = e.touches[0].clientY;
+            const diffX = touchStartX - touchX;
+            const diffY = touchStartY - touchY;
+            
+            // Only horizontal swipe
+            if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 50) {
+                if (diffX > 0 && nextChapter) {
+                    swipeRight.classList.add('visible');
+                    swipeLeft.classList.remove('visible');
+                } else if (diffX < 0 && prevChapter) {
+                    swipeLeft.classList.add('visible');
+                    swipeRight.classList.remove('visible');
+                }
+            }
+        }
+        
+        function handleTouchEnd(e) {
+            if (!touchStartX) return;
+            
+            const touchEndX = e.changedTouches[0].clientX;
+            const touchEndY = e.changedTouches[0].clientY;
+            const diffX = touchStartX - touchEndX;
+            const diffY = touchStartY - touchEndY;
+            
+            swipeLeft.classList.remove('visible');
+            swipeRight.classList.remove('visible');
+            
+            // Horizontal swipe threshold
+            if (Math.abs(diffX) > 100 && Math.abs(diffX) > Math.abs(diffY) * 2) {
+                if (diffX > 0 && nextChapter) {
+                    navigateToChapter(nextChapter.chapter_number);
+                } else if (diffX < 0 && prevChapter) {
+                    navigateToChapter(prevChapter.chapter_number);
+                }
+            }
+            
+            touchStartX = 0;
+            touchStartY = 0;
+        }
+        
+        // Event Listeners
+        
+        // Settings panel (desktop)
+        settingsBtn?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isOpen = settingsPanel.style.opacity === '1';
+            settingsPanel.style.opacity = isOpen ? '0' : '1';
+            settingsPanel.style.visibility = isOpen ? 'hidden' : 'visible';
+            settingsPanel.style.transform = isOpen ? 'translateY(-10px)' : 'translateY(0)';
+        });
+        
+        // Settings (mobile)
+        mobileSettingsBtn.addEventListener('click', openBottomSheet);
+        bottomSheetOverlay.addEventListener('click', closeBottomSheet);
+        
+        // Font size
+        fontSizeSlider.addEventListener('input', () => {
+            chapterContent.style.fontSize = `${fontSizeSlider.value}px`;
+            fontSizeValue.textContent = fontSizeSlider.value;
+            saveSettings(getCurrentSettings());
+        });
+        
+        fontSizeUp.addEventListener('click', () => {
+            const newSize = Math.min(parseInt(fontSizeSlider.value) + 2, 28);
+            fontSizeSlider.value = newSize;
+            fontSizeSlider.dispatchEvent(new Event('input'));
+        });
+        
+        fontSizeDown.addEventListener('click', () => {
+            const newSize = Math.max(parseInt(fontSizeSlider.value) - 2, 14);
+            fontSizeSlider.value = newSize;
+            fontSizeSlider.dispatchEvent(new Event('input'));
+        });
+        
+        // Font family
+        document.querySelectorAll('.font-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.font-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                document.body.className = btn.dataset.font;
+                saveSettings(getCurrentSettings());
+            });
+        });
+        
+        // Theme
+        document.querySelectorAll('.theme-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                document.body.dataset.theme = btn.dataset.theme;
+                saveSettings(getCurrentSettings());
+            });
+        });
+        
+        // Line height
+        lineHeightSlider.addEventListener('input', () => {
+            chapterContent.style.lineHeight = lineHeightSlider.value;
+            saveSettings(getCurrentSettings());
+        });
+        
+        // Brightness
+        brightnessSlider.addEventListener('input', () => {
+            brightnessOverlay.style.opacity = brightnessSlider.value / 100;
+            saveSettings(getCurrentSettings());
+        });
+        
+        // Scroll
+        window.addEventListener('scroll', updateReadingProgress, { passive: true });
+        
+        // Touch gestures (swipe to navigate)
+        document.addEventListener('touchstart', handleTouchStart, { passive: true });
+        document.addEventListener('touchmove', handleTouchMove, { passive: true });
+        document.addEventListener('touchend', handleTouchEnd, { passive: true });
+        
+        // Tap zones
+        tapZoneLeft.addEventListener('click', () => {
+            if (prevChapter) navigateToChapter(prevChapter.chapter_number);
+        });
+        
+        tapZoneRight.addEventListener('click', () => {
+            if (nextChapter) navigateToChapter(nextChapter.chapter_number);
+        });
+        
+        tapZoneCenter.addEventListener('click', () => {
+            topBar.classList.toggle('hidden');
+            bottomNav.classList.toggle('hidden');
+        });
+        
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+            
+            switch (e.key) {
+                case 'ArrowLeft':
+                    if (prevChapter) navigateToChapter(prevChapter.chapter_number);
+                    break;
+                case 'ArrowRight':
+                    if (nextChapter) navigateToChapter(nextChapter.chapter_number);
+                    break;
+                case 'Escape':
+                    closeBottomSheet();
+                    break;
+            }
+        });
+        
+        // Close settings when clicking outside
+        document.addEventListener('click', (e) => {
+            if (settingsPanel && !settingsPanel.contains(e.target) && !settingsBtn?.contains(e.target)) {
+                settingsPanel.style.opacity = '0';
+                settingsPanel.style.visibility = 'hidden';
+                settingsPanel.style.transform = 'translateY(-10px)';
+            }
+        });
+        
+        // Initialize
+        loadChapter();
+    </script>
+</body>
+</html>

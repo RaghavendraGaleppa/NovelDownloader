@@ -83,3 +83,5 @@ w3lib==2.3.1
 watchfiles==1.1.0
 websockets==15.0.1
 zope.interface==7.2
+selenium
+webdriver-manager

@@ -2,6 +2,8 @@
 from bson import ObjectId
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from typing import List, Optional
 import os
 
@@ -41,14 +43,31 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Get the directory where app.py is located
+STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
+
 
 #### ROUTES
 
 @app.get("/")
 async def landing_page():
-    """Welcome endpoint."""
+    """Serve the main frontend page."""
     api_logger.info("Landing page hit")
-    return {"message": "Welcome to the Novel Reader API", "version": "1.0.0"}
+    return FileResponse(os.path.join(STATIC_DIR, "index.html"))
+
+
+@app.get("/novel.html")
+async def novel_page():
+    """Serve the novel detail page."""
+    api_logger.info("Novel page hit")
+    return FileResponse(os.path.join(STATIC_DIR, "novel.html"))
+
+
+@app.get("/chapter.html")
+async def chapter_page():
+    """Serve the chapter reading page."""
+    api_logger.info("Chapter reading page hit")
+    return FileResponse(os.path.join(STATIC_DIR, "chapter.html"))
 
 
 @app.get("/novels", response_model=BaseResponseSerializer)
@@ -311,3 +330,9 @@ async def novel(novel_id: str):
     )
 
     return BaseResponseSerializer(data=response_data, ref_code=200)
+
+
+# ==================== STATIC FILE SERVING ====================
+# Mount static files (CSS, JS, etc.) - must be after all routes
+# This serves files from /static/* path
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
