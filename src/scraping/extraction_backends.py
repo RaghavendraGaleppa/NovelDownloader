@@ -414,4 +414,219 @@ class EB1QXS(ExtractionBackend):
                         if cleaned_paragraph:
                             final_paragraphs.append(cleaned_paragraph)
 
-        return page_title, final_paragraphs 
+        return page_title, final_paragraphs
+
+
+class EBNovel543(ExtractionBackend):
+    """
+    Extraction backend for novel543.com website.
+    Handles the specific HTML structure used by this novel site.
+    
+    URL patterns:
+    - Chapter: /{novel_id}/{prefix}_{chapter}.html (e.g., /0624601529/8096_1.html)
+    - Multi-part: /{novel_id}/{prefix}_{chapter}_{part}.html (e.g., /0624601529/8096_1_2.html)
+    - TOC: /{novel_id}/dir
+    """
+    
+    def get_next_chapter_url(self, html_content: str, current_url: Optional[str] = None) -> Optional[str]:
+        """
+        Extracts the URL for the next chapter from novel543 HTML content.
+        
+        Args:
+            html_content (str): The HTML content of the novel chapter page
+            current_url (str, optional): The current page URL for resolving relative URLs
+            
+        Returns:
+            str or None: The URL of the next chapter, or None if not found
+        """
+        soup = BeautifulSoup(html_content, 'html.parser')
+
+        # Find the navigation link with text "下一章" (Next Chapter)
+        # The navigation is in a generic div containing links for 上一章, 目錄, 下一章
+        next_chapter_link = soup.find('a', string="下一章")
+        
+        if next_chapter_link and isinstance(next_chapter_link, Tag) and next_chapter_link.get('href'):
+            href = next_chapter_link.get('href')
+            
+            # Check if this is a "no next chapter" link (links back to the same page)
+            if current_url and href:
+                # Parse current URL to compare
+                current_path = urlparse(current_url).path
+                href_path = str(href)
+                
+                # If next chapter links to the same page, there's no next chapter
+                if current_path == href_path:
+                    return None
+            
+            # Convert relative URLs to absolute URLs if current_url is provided
+            if current_url and href:
+                return urljoin(current_url, str(href))
+            return str(href) if href else None
+        
+        return None  # Return None if the next chapter link is not found
+
+    def get_chapter_number(self, html_content: str, current_url: Optional[str] = None) -> Optional[str]:
+        """
+        Extracts the chapter number from novel543 HTML content.
+        
+        Args:
+            html_content (str): The HTML content of the novel chapter page
+            current_url (str, optional): The current page URL for URL-based extraction fallback
+            
+        Returns:
+            str or None: The chapter number as a string, or None if not found
+        """
+        soup = BeautifulSoup(html_content, 'html.parser')
+        chapter_number = None
+
+        # Try to find chapter number in <h1> tag
+        # Format: "第1章 青梅竹馬是未來女帝？ (1/2)"
+        h1_tag = soup.find('h1')
+        if h1_tag and isinstance(h1_tag, Tag):
+            h1_text = h1_tag.get_text(strip=True)
+            # Pattern for "第X章"
+            match = re.search(r'第(\d+)章', h1_text)
+            if match:
+                chapter_number = match.group(1)
+
+        # If not found in <h1>, try to find in <title> tag
+        if not chapter_number and soup.title and soup.title.string:
+            match = re.search(r'第(\d+)章', str(soup.title.string))
+            if match:
+                chapter_number = match.group(1)
+                
+        # Fallback: try other common chapter patterns
+        if not chapter_number:
+            if h1_tag and isinstance(h1_tag, Tag):
+                h1_text = h1_tag.get_text(strip=True)
+                # Try patterns like "Chapter X", "第X话", etc.
+                match = re.search(r'第\s*(\d+)\s*章|第\s*(\d+)\s*话|Chapter\s*(\d+)', h1_text, re.IGNORECASE)
+                if match:
+                    chapter_number = next((g for g in match.groups() if g is not None), None)
+
+            if not chapter_number and soup.title and soup.title.string:
+                match = re.search(r'第\s*(\d+)\s*章|第\s*(\d+)\s*话|Chapter\s*(\d+)', str(soup.title.string), re.IGNORECASE)
+                if match:
+                    chapter_number = next((g for g in match.groups() if g is not None), None)
+        
+        # URL-based fallback extraction if HTML parsing failed
+        if not chapter_number and current_url:
+            chapter_number = self._extract_chapter_from_url(current_url)
+                    
+        return chapter_number
+    
+    def _extract_chapter_from_url(self, url: str) -> Optional[str]:
+        """
+        Extract chapter number from URL as fallback.
+        
+        For novel543.com:
+        - https://www.novel543.com/0624601529/8096_1.html -> chapter "1"
+        - https://www.novel543.com/0624601529/8096_1_2.html -> chapter "1" (part 2)
+        - https://www.novel543.com/0624601529/8096_123.html -> chapter "123"
+        """
+        # Specific pattern for novel543.com URLs: /novel_id/prefix_chapter.html or /novel_id/prefix_chapter_part.html
+        # Match pattern like /8096_123.html or /8096_123_2.html
+        match = re.search(r'/\d+_(\d+)(?:_\d+)?\.html?$', url)
+        if match:
+            return match.group(1)
+        
+        # General fallback patterns
+        patterns = [
+            r'/(?:chapter|chap|ch)[-_]?(\d+)',  # /chapter-123, /chap123, /ch_123
+            r'/(\d+)\.html?$',                 # /123.html
+            r'/(\d+)/?$',                      # /123/
+            r'chapter=(\d+)',                  # ?chapter=123
+            r'ch=(\d+)',                       # ?ch=123
+        ]
+        
+        for pattern in patterns:
+            match = re.search(pattern, url, re.IGNORECASE)
+            if match:
+                return match.group(1)
+        
+        return None
+
+    def extract_novel_content(self, html_content: str) -> Tuple[str, List[str]]:
+        """
+        Extracts the title and novel text paragraphs from novel543 HTML content.
+        
+        Args:
+            html_content (str): The HTML content of the novel chapter page
+            
+        Returns:
+            tuple: A tuple containing (title, paragraphs_list)
+        """
+        soup = BeautifulSoup(html_content, 'html.parser')
+
+        # Extract the title from the <title> tag in the <head> section
+        page_title = soup.title.string.strip() if soup.title and soup.title.string else "No Title Found"
+
+        # Get the chapter title from h1 if available (for deduplication)
+        chapter_title_in_h1 = ""
+        h1_tag = soup.find('h1')
+        if h1_tag and isinstance(h1_tag, Tag):
+            chapter_title_in_h1 = h1_tag.get_text(strip=True)
+
+        final_paragraphs = []
+        
+        # Find all paragraph tags in the document
+        # novel543.com uses <p> tags for content, typically within a container div
+        # We need to find the content area which contains the h1 and paragraphs
+        
+        # First, try to find the content container (the div that contains h1 and paragraphs)
+        content_container = None
+        if h1_tag:
+            # The content is typically in the parent or sibling of h1
+            content_container = h1_tag.find_parent()
+        
+        if content_container and isinstance(content_container, Tag):
+            paragraph_tags = content_container.find_all('p')
+        else:
+            # Fallback: get all p tags from body
+            paragraph_tags = soup.find_all('p')
+        
+        # Common footer/advertisement text patterns to skip
+        skip_patterns = [
+            '溫馨提示',
+            '温馨提示',
+            '登錄用戶',
+            '登录用户',
+            '站內信',
+            '站内信',
+            '本章未完',
+            '點擊下一頁',
+            '点击下一页',
+            'VIP會員',
+            'VIP会员',
+            '免廣告',
+            '免广告',
+            '應廣大讀者',
+            '应广大读者',
+        ]
+        
+        for p_tag in paragraph_tags:
+            if p_tag and isinstance(p_tag, Tag):
+                paragraph_text = p_tag.get_text(strip=True)
+                
+                # Skip empty paragraphs
+                if not paragraph_text:
+                    continue
+                
+                # Skip paragraphs that contain advertisement/footer text
+                should_skip = False
+                for pattern in skip_patterns:
+                    if pattern in paragraph_text:
+                        should_skip = True
+                        break
+                
+                if should_skip:
+                    continue
+                
+                # Clean up the paragraph text
+                # Remove excessive whitespace characters
+                cleaned_paragraph = re.sub(r'\s+', ' ', paragraph_text).strip()
+                
+                if cleaned_paragraph:
+                    final_paragraphs.append(cleaned_paragraph)
+
+        return page_title, final_paragraphs

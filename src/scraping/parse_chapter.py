@@ -8,7 +8,7 @@ import json
 import random
 import argparse
 import urllib3
-from src.scraping.extraction_backends import ExtractionBackend, EB69Shu, EB1QXS
+from src.scraping.extraction_backends import ExtractionBackend, EB69Shu, EB1QXS, EBNovel543
 from urllib.parse import urlparse
 from typing import Optional
 from datetime import datetime
@@ -78,6 +78,10 @@ class SeleniumScraper:
         Returns:
             str or None: Page source if successful
         """
+        if not self.driver:
+            print("Error: Selenium driver not initialized")
+            return None
+            
         try:
             print(f"Loading {url} with Selenium...")
             self.driver.get(url)
@@ -129,6 +133,7 @@ class NovelScraper:
         
         Args:
             timeout (int): Request timeout in seconds (default: 30)
+            use_selenium (bool): Whether to use Selenium instead of CloudScraper
         """
         self.timeout = timeout
         self.use_selenium = use_selenium
@@ -206,7 +211,11 @@ class NovelScraper:
         """
         if self.use_selenium:
             # Use Selenium scraper directly
-            return self.scraper.fetch_url(url)
+            if isinstance(self.scraper, SeleniumScraper):
+                return self.scraper.fetch_url(url)
+            else:
+                print("Error: Selenium scraper not properly initialized")
+                return None
         
         # Use CloudScraper with retries
         for attempt in range(max_retries):
@@ -219,6 +228,7 @@ class NovelScraper:
                     print(f"Waiting {wait_time:.2f} seconds before retry...")
                     time.sleep(wait_time)
                 
+                # self.scraper should be a CloudScraper instance when not using Selenium
                 response = self.scraper.get(url, verify=False, timeout=self.timeout)
                 
                 # Check for Cloudflare challenge
@@ -248,7 +258,7 @@ class NovelScraper:
     
     def close(self):
         """Clean up resources."""
-        if self.use_selenium and hasattr(self.scraper, 'close'):
+        if self.use_selenium and isinstance(self.scraper, SeleniumScraper):
             self.scraper.close()
 
 # --- Backend Detection ---
@@ -269,6 +279,10 @@ def detect_extraction_backend(url: str) -> ExtractionBackend:
     # Check for 1qxs domains
     if '1qxs' in domain:
         return EB1QXS()
+    
+    # Check for novel543 domains
+    if 'novel543' in domain:
+        return EBNovel543()
     
     # Check for 69shu domains
     if '69shu' in domain or 'shu69' in domain or '69shuba' in domain:
@@ -483,6 +497,67 @@ def _create_chapter_file(output_dir_path: str, chapter_num_str: str, title: str,
         print(f"Error writing file {filepath}: {e}")
         return False
 
+def _validate_chapter_sequence_and_retry(
+    current_url: str,
+    expected_chapter_num: Optional[int],
+    actual_chapter_num: Optional[int],
+    max_retries: int = 3,
+    use_selenium: bool = False
+) -> tuple[Optional[str], Optional[list[str]], Optional[str], Optional[str]]:
+    """
+    Validates if the scraped chapter number is sequential. If not, waits and retries.
+    
+    Args:
+        current_url (str): The URL being scraped
+        expected_chapter_num (Optional[int]): The expected next chapter number
+        actual_chapter_num (Optional[int]): The actual chapter number found
+        max_retries (int): Maximum number of retries (default: 3)
+        use_selenium (bool): Whether to use Selenium for scraping
+        
+    Returns:
+        tuple: (title, paragraphs, next_url, chapter_number) or (None, None, None, None) if failed
+    """
+    # If we don't have an expected chapter number, or if numbers match, no validation needed
+    if expected_chapter_num is None or actual_chapter_num is None:
+        return None, None, None, None
+    
+    if actual_chapter_num == expected_chapter_num:
+        return None, None, None, None  # Validation passed, continue with original result
+    
+    print(f"⚠️  Chapter number mismatch detected!")
+    print(f"   Expected: {expected_chapter_num}")
+    print(f"   Found: {actual_chapter_num}")
+    print(f"   This might indicate rate limiting or blocking.")
+    
+    for retry_attempt in range(max_retries):
+        wait_time = 60 + random.uniform(30, 60)  # Wait 1-2 minutes
+        print(f"   Waiting {wait_time:.1f} seconds before retry {retry_attempt + 1}/{max_retries}...")
+        time.sleep(wait_time)
+        
+        print(f"   Retrying scrape of {current_url} (attempt {retry_attempt + 1}/{max_retries})")
+        
+        retry_title, retry_paragraphs, retry_next_url, retry_chapter_num_str = scrape_novel_content(
+            current_url,
+            source_type='url',
+            use_selenium=use_selenium
+        )
+        
+        if retry_title and not retry_title.startswith("Error:") and retry_chapter_num_str:
+            # Extract chapter number from retry
+            match = re.search(r'^\d+', retry_chapter_num_str)
+            if match:
+                retry_chapter_num = int(match.group(0))
+                if retry_chapter_num == expected_chapter_num:
+                    print(f"   ✅ Retry successful! Found correct chapter number {retry_chapter_num}")
+                    return retry_title, retry_paragraphs, retry_next_url, retry_chapter_num_str
+                else:
+                    print(f"   Still incorrect chapter number: {retry_chapter_num} (expected {expected_chapter_num})")
+        else:
+            print(f"   Retry {retry_attempt + 1} failed to get valid content")
+    
+    print(f"   ❌ All {max_retries} retries failed. Chapter number still incorrect.")
+    return None, None, None, None
+
 # --- Main Function ---
 
 def main(args: argparse.Namespace):
@@ -560,8 +635,70 @@ def main(args: argparse.Namespace):
                                 # Update progress to reflect the new URL to scrape
                                 _save_current_progress(novel_id, last_scraped_url, current_url, last_known_chapter_num)
                             else:
-                                print("No new chapters found. Novel appears to be up to date.")
-                                return
+                                print("No new chapters found. Checking if we should validate the last chapter...")
+                                
+                                # Only validate for EB69Shu backends, skip for 1QXS
+                                backend = detect_extraction_backend(last_scraped_url)
+                                
+                                if isinstance(backend, EB69Shu):
+                                    print("Validating the last chapter for 69shu backend to ensure it's proper...")
+                                    
+                                    # Validate the last chapter by checking if it's sequential
+                                    if last_known_chapter_num is not None:
+                                        # Re-scrape the last chapter to validate its content
+                                        last_title, last_paragraphs, _, last_chapter_num_str = scrape_novel_content(
+                                            last_scraped_url,
+                                            source_type='url', 
+                                            use_selenium=args.use_selenium
+                                        )
+                                        
+                                        if last_chapter_num_str:
+                                            match = re.search(r'^\d+', last_chapter_num_str)
+                                            if match:
+                                                actual_last_chapter_num = int(match.group(0))
+                                                
+                                                # Check if the last chapter number is what we expect
+                                                if actual_last_chapter_num == last_known_chapter_num:
+                                                    print("✅ Last chapter validation passed. Novel appears to be up to date.")
+                                                    return
+                                                else:
+                                                    print(f"⚠️ Last chapter validation failed!")
+                                                    print(f"   Expected: {last_known_chapter_num}")
+                                                    print(f"   Found: {actual_last_chapter_num}")
+                                                    print(f"   The last chapter might have been affected by rate limiting.")
+                                                    print(f"   Will retry scraping the last chapter with validation...")
+                                                    
+                                                    # Try to get corrected content for the last chapter
+                                                    corrected_result = _validate_chapter_sequence_and_retry(
+                                                        current_url=last_scraped_url,
+                                                        expected_chapter_num=last_known_chapter_num,
+                                                        actual_chapter_num=actual_last_chapter_num,
+                                                        use_selenium=args.use_selenium
+                                                    )
+                                                    
+                                                    corrected_title, corrected_paragraphs, corrected_next_url, corrected_chapter_num_str = corrected_result
+                                                    
+                                                    if corrected_title is not None and corrected_next_url:
+                                                        print("✅ Last chapter validation and correction successful!")
+                                                        print(f"🎉 Found new chapter after validation! Will continue from: {corrected_next_url}")
+                                                        current_url = corrected_next_url
+                                                        _save_current_progress(novel_id, last_scraped_url, current_url, last_known_chapter_num)
+                                                    else:
+                                                        print("❌ Last chapter validation failed even after retries.")
+                                                        print("Novel might be up to date, or there are persistent issues.")
+                                                        return
+                                        else:
+                                            print("⚠️ Could not determine chapter number from last scraped URL.")
+                                            print("Novel appears to be up to date.")
+                                            return
+                                    else:
+                                        print("No last known chapter number available for validation.")
+                                        print("Novel appears to be up to date.")
+                                        return
+                                else:
+                                    print("Skipping last chapter validation for 1QXS backend (combines multiple chapters).")
+                                    print("Novel appears to be up to date.")
+                                    return
                         else:
                             print("Failed to re-scrape last URL. Unable to check for new chapters.")
                             return
@@ -667,12 +804,53 @@ def main(args: argparse.Namespace):
             # Progress not saved for this failed attempt, will retry current_url next time
             break
 
-        # Logic to update chapter number
+        # Logic to update chapter number and validate sequence
         current_chapter_num_to_save = last_known_chapter_num
         if chapter_num_str:
             match = re.search(r'^\d+', chapter_num_str)
             if match:
                 current_chapter_num_to_save = int(match.group(0))
+        
+        # Validate chapter sequence only for EB69Shu backends (not for 1QXS which combines chapters)
+        if last_known_chapter_num is not None and current_chapter_num_to_save is not None:
+            # Detect the backend type to determine if sequence validation should apply
+            backend = detect_extraction_backend(current_url) if current_url else EB69Shu()
+            
+            # Only apply sequence validation for EB69Shu backends
+            if isinstance(backend, EB69Shu):
+                expected_chapter_num = last_known_chapter_num + 1
+                
+                # Check if chapter number is sequential
+                if current_chapter_num_to_save != expected_chapter_num:
+                    print(f"Chapter number sequence validation triggered for 69shu backend...")
+                    
+                    # Try to get corrected content with retries
+                    corrected_result = _validate_chapter_sequence_and_retry(
+                        current_url=current_url,
+                        expected_chapter_num=expected_chapter_num,
+                        actual_chapter_num=current_chapter_num_to_save,
+                        use_selenium=args.use_selenium
+                    )
+                    
+                    corrected_title, corrected_paragraphs, corrected_next_url, corrected_chapter_num_str = corrected_result
+                    
+                    # If retry was successful, use the corrected data
+                    if corrected_title is not None:
+                        title = corrected_title
+                        paragraphs = corrected_paragraphs
+                        next_url_from_scraper = corrected_next_url
+                        chapter_num_str = corrected_chapter_num_str
+                        # Update the chapter number with the corrected value
+                        if corrected_chapter_num_str:
+                            match = re.search(r'^\d+', corrected_chapter_num_str)
+                            if match:
+                                current_chapter_num_to_save = int(match.group(0))
+                        print(f"Using corrected chapter data after retry validation.")
+                    else:
+                        print(f"Retry validation failed. Will save chapter with unexpected number {current_chapter_num_to_save} (expected {expected_chapter_num}).")
+            else:
+                print(f"Skipping chapter sequence validation for 1QXS backend (combines multiple chapters).")
+        
         last_known_chapter_num = current_chapter_num_to_save
 
         if not chapter_num_str:
@@ -684,7 +862,7 @@ def main(args: argparse.Namespace):
             filepath = os.path.join(output_dir_path, f"Chapter_{chapter_num_str}.md")
             file_existed = os.path.exists(filepath)
             
-            if _create_chapter_file(output_dir_path, chapter_num_str, title, paragraphs):
+            if _create_chapter_file(output_dir_path, chapter_num_str, title, paragraphs or []):
                 chapters_saved_this_session += 1
                 
                 if progress_id and last_known_chapter_num is not None:
