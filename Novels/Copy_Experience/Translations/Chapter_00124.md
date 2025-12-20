@@ -1,0 +1,3 @@
+Chapter 123: The Eve of War
+
+Nearly twenty Foundation Establishment cultivators gathered in a palace belonging to the Wei Family in Tianmen City. The number of Foundation Establishment cultivators who came to help the Wei Family jointly destroy the Thousand Desolations Sect surprisingly reached nine. Adding the Wei Family's own eight Foundation Establishment cultivators and three more from their affiliated forces, the total number amounted to over twenty individuals. Excluding Lu Xu, there were as many as eight foreign Foundation Establishment cultivators who joined the Wei Family's side. This number represented almost all the Foundation Establishment cultivators who wished to come to Wei State and seize a spirit vein.

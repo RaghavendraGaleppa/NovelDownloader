@@ -1,0 +1,19 @@
+# Chapter 51: Swallowing Cloud Strength
+
+Qian Jijiang's face was flushed. Watching the candle in his hand burn, he let out a slight sigh of relief. He glanced back at the others, finding they had all kept up. Just as he was about to turn away, his eyes suddenly fixed on the old woman, Feng Yu. Feng Yu's face was tinged with green mist, which wasn't unusual, but her eyes had somehow turned pitch black, devoid of any human emotion, only a chilling emptiness.
+
+Chen Fei followed behind Qian Jijiang. Seeing the dramatic change in Qian Jijiang's expression, his heart also jolted. Looking back, he immediately noticed Feng Yu's abnormality. As if sensing their gaze, Feng Yu's lips slowly stretched into a grin that split all the way to her earlobes, sending a spine-chilling sensation straight through Chen Fei's heart.
+
+Draw, shoot! While everyone else was running with all their might, only Chen Fei had reserved some energy. Chen Fei twisted his body and shot an arrow straight at Feng Yu. *Bang!* Before the arrow could even reach Feng Yu, her head exploded. Flesh and green mist instantly filled the air. Chen Fei instinctively held his breath, but still felt a wave of dizziness wash over his mind. He looked at his exposed skin, which had already turned a sickly green.
+
+No one objected. At this moment, everyone had sufficient trust in Qian Jijiang. The three hundred taels they spent were not in vain. If not for Qian Jijiang today, who knew how many would have died? Being completely wiped out was a distinct possibility. Chen Fei glanced at the red candle in Qian Jijiang's hand and secretly decided that after asking for details, he would definitely buy dozens and store them in his spatial grid. The outside world was simply too dangerous.
+
+They continued for a full hour before Qian Jijiang finally stopped. He carefully examined their surroundings, then nodded at the group. Only then did everyone completely relax their guard. Having narrowly escaped a calamity, they were still filled with lingering fear. Finding a suitable spot, they set up camp, and the exhausted group began to doze off. Chen Fei sat cross-legged, cultivating the Jingxuan Strength to slowly recover his stamina. The night passed without incident until dawn.
+
+They continued their journey during the day, but unlike the relaxed state of the previous few days, everyone was now on high alert. "I think I'm just overtired," Chi Defeng muttered under his breath during a break, sniffing his nose with a helpless expression. "I can actually smell the roasted meats from Zuixiang Restaurant. It smells so good!" Chen Fei glanced at Chi Defeng. What a nose on him.
+
+"What are your plans?" Chi Defeng asked Chen Fei. "I'm going to continue on to Xianyun City," Chen Fei replied after a moment's thought. Even if he couldn't join the Xianyun Sword Sect, the stable environment there alone would be suitable for his gradual development. Not to mention, there would surely be more cultivation techniques and secret manuals available, unlike Pingyin County where everything was guarded so tightly.
+
+"There will definitely be merchant caravans heading to Xianyun City from Xingfen City. It'll be safer if you travel with one of them then," Qian Jijiang said with a smile. "They say the Xianyun Sword Sect is unrivaled under heaven. Now that I've left Pingyin County, I also want to go and check them out," Chi Defeng said, looking at Chen Fei and chuckling softly. "How about we travel together?" "Couldn't ask for more!" Chen Fei cupped his hands.
+
+"Let's not just stand around talking. Come on, let's find a good inn and have a proper meal!" The three men laughed heartily and walked down the street. Night fell. In his room at the inn, Chen Fei sat cross-legged.

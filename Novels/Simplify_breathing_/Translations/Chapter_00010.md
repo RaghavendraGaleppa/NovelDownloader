@@ -1,0 +1,21 @@
+# Chapter 10: New Elixir Recipe
+
+The Extreme Mountain Breathing Technique was a method Chen Fei had long since cultivated to the Grand Perfection realm, mastering it thoroughly. He could even reduce some steps from its original breathing rhythm. Although it had previously merged with the Wind Suspension Force, after the merge, it only resulted in a new Wind Suspension Breathing Technique, which didn't mean Chen Fei had forgotten how to use the Extreme Mountain Breathing Technique.
+
+At this moment, as Chen Fei continuously circulated the Extreme Mountain Breathing Technique, the Wind Suspension Breathing Technique's experience points began to rise steadily. Insights related to the Wind Suspension Breathing Technique emerged in his mind one by one, making him involuntarily immerse himself in it. An hour later, Chen Fei looked at the panel, a smile involuntarily appearing on his face. The Wind Suspension Breathing Technique's experience points had increased by over a hundred. At this rate, as long as Chen Fei worked hard, he could elevate the Wind Suspension Breathing Technique to the Perfection realm in about two days. Even reaching Grand Perfection would take less than a month. During this period, Chen Fei's cultivation progress would continuously accelerate, reaching its peak after a month. Perhaps breaking through to the Muscle Forging realm would also be compressed from over five months to two or three months, or even shorter.
+
+"Panel, simplify Green Mountain Sword!"
+
+"Green Mountain Sword simplifying... Simplification successful... Green Mountain Sword → Extreme Mountain Fist!"
+
+Looking at the information on the panel, it truly simplified into Extreme Mountain Fist as expected. Chen Fei couldn't help but grin.
+
+Mastery level was the current state of most martial artists. As for Chen Fei, with just effort, he could reach Grand Perfection. In such circumstances, how could Chen Fei not diligently apply himself? Moreover, with the continuous growth of his cultivation, the burden brought by the mark on Chen Fei's hand was gradually alleviating.
+
+A few days ago, when his wages were settled, Chen Fei's pay shocked many people. Perhaps it was the medical hall's deliberate arrangement, but Chen Fei's monthly wage of over fifty taels of silver made many people drop their jaws. In fact, this amount was common or even less than what other alchemists in the medical hall earned, as Chen Fei only knew how to refine Blood Qi Pills, which was relatively simple. But people couldn't help but compare. Just think, what was Chen Fei's situation a month ago? He was a lowly handyman in the medical hall, subject to scolding, beating, and punishment from anyone displeased, with a monthly wage less than one tael of silver. Now, not only had his status risen, but his income had also increased dozens of times; how could it not incite envy and jealousy? Chen Fei wasn't ambiguous; he spent ten taels of silver to treat everyone in the medical hall to a meal at a restaurant. Zeng Defang and Cui Sanjie also specifically showed their support, which helped to dispel much of the jealousy.
+
+As for the last one, the Healing Pill, as its name suggested, it could alleviate or even directly treat internal injuries when consumed after being wounded. Even if it couldn't fully heal, it could play a suppressive role. Unlike the previous standard pill recipes, these several recipes contained many detailed notes, allowing beginners to master them more quickly. Chen Fei didn't learn all four pill recipes; instead, he chose to learn the Detoxification Pill and Healing Pill first. The money issue had been temporarily resolved, so Chen Fei's learning of pill recipes was more to serve his future martial path. After all, only by possessing powerful strength could he truly protect many things.
+
+"Detoxification Pill simplifying... Simplification successful... Detoxification Pill → Stir-fried Yam!"
+
+"Healing Pill simplifying... Simplification successful... Healing Pill → Stir-fried Chicken!"

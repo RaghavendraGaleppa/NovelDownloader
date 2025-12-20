@@ -1,0 +1,3 @@
+Chapter 169: The Azure Emperor's Wood Emperor Art
+
+Venerable Mu Yuan's words to Lu Xu, regarding considering the sect's prosperity only after achieving Golden Core, were spoken with immense confidence. This was because he currently possessed three Spirit Items for Core Formation. These three spirit items were all treasures produced on Divine Wood Peak, each taking a thousand years to form. The astonishing efficacy of such spirit items was evident; if consumed by a powerful Foundation Establishment Grand Perfection cultivator, forming a Core was almost a certainty.

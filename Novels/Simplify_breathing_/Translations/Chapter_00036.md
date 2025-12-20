@@ -1,0 +1,23 @@
+# Chapter Thirty-Six: The Situation
+
+In his alchemy room, Chen Fei ingested a Light Spirit Pill, sat cross-legged, and circulated his Suspended Jing. After a full hour, Chen Fei opened his eyes, exhaling a mouthful of turbid air.
+
+He hadn't fully deduced the Light Spirit Pill formula yet, stuck at the last step, needing time to slowly chip away at it. According to Chen Fei's estimate, it would likely take another month to fully deduce the formula. Although the formula wasn't complete, it didn't prevent Chen Fei from using the Light Spirit Pill for cultivation.
+
+Thanks to the sale of Grass Reversion Pills in the black market, Chen Fei wasn't rolling in cash, but he had a steady stream of smaller funds. Consuming a Light Spirit Pill, priced at fifteen taels of silver, put no pressure on him whatsoever.
+
+With a perfected Suspended Jing and Light Spirit Pills, the feedback from the system indicated that Chen Fei would need almost a year to advance his cultivation to the Bone Forging Realm. This was a significant reduction compared to the previous estimate of over a year. If Chen Fei wanted to further compress the time it took to reach the Bone Forging Realm, he would either need to acquire a higher-tier internal energy cultivation method or consume a Constant Float Pill.
+
+Higher-tier internal energy cultivation methods were kept within the various aristocratic families of Pingyin County, typically only passed down to direct descendants. Even if Chen Fei were to marry into an aristocratic family, his chances of obtaining such a method would be very low. Thus, in Pingyin County, Chen Fei was unlikely to acquire a stronger internal energy cultivation method and could only rely on luck in the black market to find methods that could still be simplified.
+
+Chen Fei later understood that his overall growth must have unlocked some limitations of "Immortal's Guidance." After all, his cultivation was only at the Flesh Forging Realm, and his sword mastery was also quite ordinary. No matter how powerful "Immortal's Guidance" was, it could only manifest based on his existing conditions. This also demonstrated the incredible power of the Immortal Cloud Sword Sect; a single stance from one of their sword techniques surpassed all the various sword methods Chen Fei had painstakingly fused together. This further ignited Chen Fei's yearning for the Immortal Cloud Sword Sect; it was truly a colossal entity.
+
+Two days ago, the Zhang family made a significant move. Knowing that Sun Shu had transformed into a nearly eerie being, with all his hatred still directed at the Zhang family, made them restless day and night. That day, the Zhang family gathered their forces, even involving people from the yamen (magistrate's office), and all of them converged on the dense forest outside the city. Whether the two sides met, no one knew; everything was kept strictly secret. Chen Fei did not participate further in this matter. To the outside world, Chen Fei was merely an alchemist at the Skin Forging Realm. If not for Zhang Yuezhen that day, such a battle would not have involved Chen Fei at all.
+
+Night fell, and Chen Fei, disguised, appeared in the black market. Inside the small cabin, the scent of herbs permeated the air. Chi Defeng looked at Chen Fei and said with a smile, "The situation in the south has been a bit grim lately. You should be careful."
+
+Rumor had it that within the imperial court's domain, war was breaking out everywhere; no one knew what had gone wrong. What Chen Fei could think of now was to join such a top sect. As long as he raised his cultivation, he would be capable of handling anything that might happen later.
+
+"No. Outside, it's chaotic with war and rampant eerie entities. It's difficult and dangerous to cross such a long distance," Chi Defeng shook his head, adding, "It's not that time yet." Chen Fei frowned slightly and nodded, then began to count the herbs for the day. A moment later, Chen Fei handed a herb to Chi Defeng. Chi Defeng expressionlessly took out another herb from behind his back and handed it back to Chen Fei. Chen Fei's eyelids twitched slightly; this game of distinguishing real from fake wasn't over yet. The crucial point was that Chi Defeng now showed no shame at all, just an expression that seemed to say, "Oh, you found out. Well done."
+
+"By the way, if I encounter an eerie entity, is there any good way to save my life?"

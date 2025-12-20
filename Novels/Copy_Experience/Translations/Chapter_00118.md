@@ -1,0 +1,3 @@
+**Chapter 117: High-Grade Second-Tier Artifact Forger**
+
+An hour later, watching the two Foundation Establishment cultivators relentlessly bombard the formation, Lu Xu finally couldn't wait any longer. His gaze had been continuously sweeping the market's surroundings and the high, distant sky above, attempting to discover if anyone was hidden there. However, after half a day, he had found nothing. Aside from the black-robed figures, there were no hidden ambushers to be found. This meant that the Thousand Jue Sect had indeed only sent two Foundation Establishment cultivators.

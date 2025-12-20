@@ -1,0 +1,3 @@
+## Chapter 76: Demonic Core Acquired
+
+Its massive body swiftly shot out from the bottom of the Jade Wave Pond, casting a vast shadow. The Black Flood Dragon's bloodthirsty eyes glared forward, seeing only a lone human figure standing there. The aura emanating from this being was so feeble that it felt it could tear it to shreds with a single light strike. Such a puny creature dared to disturb its peace? Already brimming with rage from the previous human attack, seeing this ant-like figure once more...

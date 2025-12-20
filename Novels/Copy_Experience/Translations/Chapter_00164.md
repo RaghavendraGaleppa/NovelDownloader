@@ -1,0 +1,3 @@
+# Chapter 162: Facing the Golden Core
+
+In such a place, Lu Xu didn't want to waste his divine sense, so instead of using the Chaotic Divine Cone, he directly commanded the Eight-Armed Evil Ghost to attack. This was his ultimate trump card. Facing this Foundation Establishment Great Perfection cultivator from the Merchant Alliance, Lu Xu immediately unleashed his powerful move. He also wanted to use this opportunity to see exactly what level the evil ghost's strength had reached. The result did not disappoint him. After emerging from the Soul-Summoning Banner, the evil ghost lunged forward, and a black, sharp...

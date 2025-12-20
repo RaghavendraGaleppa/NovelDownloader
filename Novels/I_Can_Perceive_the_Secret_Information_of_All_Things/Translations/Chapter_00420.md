@@ -1,0 +1,3 @@
+# Chapter 420: Two Empty Wine Cups  
+
+The Human Race's Wall of Destiny towered several times higher than the city walls of any kingdom. Its broad passageways could accommodate eighty horses riding abreast. From a distance, one could see a thick golden barrier of light—this was the effect of the grand formation enveloping the Wall of Destiny. Any demon or monster that dared to cross it with ill intent would...

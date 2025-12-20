@@ -1,0 +1,3 @@
+Chapter 93: Qing Teng Flower Acquired
+
+Lu Xu faintly sensed a powerful aura coming from behind him. He surmised that this should be the owner of that cave returning. Lu Xu did not turn back. Now was not the time to hunt demonic beasts; seizing the time to collect spirit herbs was the correct approach. Not long after, he discovered more than ten stalks of another auxiliary herb required for refining Coagulating Origin Pills beside a pool. Inside this pool, there were also seven or eight first-tier demonic beasts, all of which were similarly slain by Lu Xu, their blood staining the pool water red.

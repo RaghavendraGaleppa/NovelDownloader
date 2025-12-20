@@ -1,0 +1,3 @@
+**Chapter 75: An Unexpected Incident**
+
+As expected, the Black Flood Dragon was lured into the three first-tier formations. In an instant, various attacks within the formations rained down upon the Black Flood Dragon. At the same time, groups of cultivators hiding behind the formations immediately rushed out, their artifacts glowing brightly as they attacked the Black Flood Dragon within the formations. All sorts of killing moves, such as second-tier talismans, Fire Thunder Orbs, and incomplete spirit artifacts, were unleashed. Only these methods could truly harm a second-tier demon beast.

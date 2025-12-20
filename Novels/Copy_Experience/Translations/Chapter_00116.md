@@ -1,0 +1,3 @@
+Chapter 115: Attack Outside the Market
+
+One Hundred-Year Earth Milk is a precious alchemical ingredient that can also be consumed raw by humans, providing immense benefits to the physical body upon ingestion. Previously, Lu Xu had issued a long-term mission in Qinghu Market, tasking the Mo family cultivators and the monster-hunting cultivators within the market to gather a considerable amount of it for him from the Myriad Monster Mountain Range. This was partly for his own body tempering, and partly in preparation for a demonic beast. Now, using it on the Little Violet Electric Sparrow had indeed produced the desired effect.

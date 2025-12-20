@@ -1,0 +1,3 @@
+Chapter 127: Scavenging the Medicinal Fields
+
+In this war attacking the Thousand Absolute Sect, Lu Xu always made sure to hold back some strength, not daring to go all out. He was worried that the situation might suddenly change again, having seen too many cases of sudden turnarounds at the most critical moments. He was always ready to flee. Currently, it seemed the biggest variable in this battle was the Foundation Establishment Perfection cultivator from the Thousand Absolute Sect who was in secluded cultivation. If this person truly succeeded in breaking through to Golden Core, then Lu Xu...

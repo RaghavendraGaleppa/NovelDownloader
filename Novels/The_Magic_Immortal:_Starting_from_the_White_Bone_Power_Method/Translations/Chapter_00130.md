@@ -1,0 +1,3 @@
+# Chapter 130: Annihilation!
+
+Guo Zhenshan, after all, was an inner disciple of the Misty Cloud Sect. Even as he cried out in alarm, he instinctively distanced himself from the others. Feeling that the defensive barrier formed by his high-grade magic robe wasn't sufficient, he swiftly pasted an ultimate-grade Golden Armor Talisman and an ultimate-grade Protection Talisman onto his body with practiced ease. With a flick of his sleeve, a golden spear materialized before him.

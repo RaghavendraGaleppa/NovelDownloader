@@ -1,0 +1,3 @@
+# Chapter 139: Dou's Ultimate Cards on the Table
+
+Eastern Qi Storm (Part 3): The Qi Emperor's sudden death sent the capital Linzi into upheaval. After painstaking efforts to escape the city, you found yourself relentlessly pursued by the Four Saints Sect. Seven major battles ensued, each a desperate struggle for survival. Breaking through layer after layer of encirclement, your actions finally drew the attention of the Four Saints Sect's leader. Determined to end this once and for all, the sect master mobilized all forces and arrived personally, wielding divine weapons for the final confrontation.

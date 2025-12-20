@@ -1,0 +1,3 @@
+Chapter 165: The Opportunity Arrives
+
+This Core Formation spiritual land of the Divine Wood Sect gives birth to a Core Formation spiritual object approximately every thousand years. This secret is known to very few Foundation Establishment cultivators, but it is no secret among Golden Core True Monarchs. Even those few great demons of the demon race have learned about it to some extent, which is why they have fought so stubbornly for this place. Consider how many years have passed since the Divine Wood Sect was destroyed? Four thousand years! In other words, this bronze gate...

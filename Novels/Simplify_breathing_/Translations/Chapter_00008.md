@@ -1,0 +1,21 @@
+# Chapter 8: A Teachable Disciple
+
+“You refine another batch of Blood Qi Pills.”
+
+Zeng Defang ordered an attendant to bring a set of Blood Qi Pill ingredients and handed them to Chen Fei. Chen Fei did not refuse. He cleaned the alchemy furnace, simply processed the ingredients, and then threw them into the furnace. Compared to his previous clumsiness, Chen Fei's movements were now slightly more practiced. At the same time, Chen Fei corrected one or two of the alchemy errors he had deliberately shown earlier. It was these one or two corrected mistakes that made the observing Zeng Defang's eyes subtly brighten.
+
+As time passed, a faint scent of herbs drifted from the furnace. A quarter of an hour quickly went by, and Chen Fei opened the lid, taking out the Blood Qi Pills from within. Compared to the first batch of Blood Qi Pills, this batch of pills was slightly rounder, and there were fewer unblended ingredients. To an outsider, perhaps this Blood Qi Pill might not seem much different from the previous one, but in Zeng Defang's eyes, the difference between the two was significant.
+
+Zeng Defang looked at the Blood Qi Pill in his hand, then looked up at Chen Fei, his eyes unable to hide his admiration. People always believe what they see, and Chen Fei had refined two batches of Blood Qi Pills right before Zeng Defang's eyes, showing clear progress. This undeniably proved that Chen Fei's alchemy talent was truly rare. At the very least, among all the people Zeng Defang had seen over his many years at Qingzheng Medical Hall, very few could compare to Chen Fei's talent.
+
+But now, seeing was believing. No matter how incredible it seemed, it had to be admitted that Chen Fei possessed remarkable alchemy talent. Given this, Cui Sanjie naturally had no reason to refuse Zeng Defang's original proposal.
+
+The news of Chen Fei becoming an alchemist spread throughout the entire medical hall in less than half a day, astonishing everyone. An alchemist! This was a skill that heavily relied on innate talent. For example, in martial arts cultivation, perhaps one in ten people might achieve something, but for alchemy, it was probable that not even one in a hundred would emerge. Therefore, an alchemist's status in Qingzheng Medical Hall was far beyond what a guard could compare to.
+
+Consequently, Chen Fei's position within the medical hall rose again. From an attendant to an alchemist, he achieved a "two-level leap" in just a few days, making countless people envious and jealous. Moreover, they also heard that Chen Fei's alchemy talent was exceptionally outstanding, having surprised both Zeng Defang and Cui Sanjie. It was understandable; in just two days, by merely looking at a pill formula, he could self-explore and successfully refine pills. If such talent wasn't considered outstanding, then what was?
+
+Previously, many people were waiting to see Chen Fei become a joke, and his affairs were even common topics of after-dinner conversation. Now, however, they absolutely dared not discuss him in such a manner, fearing that Chen Fei might overhear them. Currently, Chen Fei naturally had little power, but who knew how far he might grow in the future? To offend such a person just for a moment's verbal gratification would be far too unworthy.
+
+Chen Fei was a little surprised, not expecting Zeng Defang to value him so highly. He guessed it was his displayed talent that had astonished Zeng Defang. Although he might have overdone it a bit, the outcome was satisfying. Chen Fei couldn't decline Zeng Defang's kindness, so he listened attentively to Zeng Defang's explanations, and simultaneously corrected one or two of the remaining errors in his next batch of alchemy.
+
+Seeing his instruction yielding such remarkable results, Zeng Defang became increasingly excited as he taught, his face flushed with delight. This was the nature of being a teacher: encountering a genius disciple who grasped concepts instantly, without needing a second explanation—that feeling was immensely fulfilling. Zeng Defang hadn't experienced such a feeling in many years. Now, watching Chen Fei's alchemy improve with each attempt, he felt even happier and prouder than if he had personally refined a difficult pill.

@@ -1,0 +1,3 @@
+Chapter 82: Azure Glow Green Lightning Blade
+
+After settling the cultivation technique matter, Lu Xu spent the next period of time socializing with his neighbors. Mingyang Alley had three residents who were Foundation Establishment cultivators, all rogue cultivators just like Lu Xu. Through conversing with these people, Lu Xu gained a deeper understanding of the cultivation world, learning many things that only Foundation Establishment cultivators could know. Besides making connections with others, Lu Xu also occasionally ventured into the outer city district to deal with some of the spoils he had acquired from battles...

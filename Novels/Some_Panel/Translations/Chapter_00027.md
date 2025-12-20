@@ -1,0 +1,45 @@
+**Chapter 27: Earth Spirit Fire, Flame Fruits**
+
+Ten Flame Snake Kings appeared. Chen De, a Foundation Establishment expert, could block five of them. Liu Yongqing, Tan Guanghong, Fang Sheng, and the other five, all at Qi Condensation Level 10, could block the remaining five. However, the rest of the snake swarm could still easily take Yang Ji's life.
+
+With almost no hesitation, Yang Ji decisively turned and retreated. But the moment he turned, he saw six afterimages flash past his eyes at extreme speed. Yang Ji focused his gaze, and who else could it be but Chen De and the other six?
+
+"These guys, it's one thing they didn't put up even a slight resistance to buy me time to escape, but they actually ran faster than me!" Yang Ji's eyes widened in disbelief. Such escape speed truly left him in the dust, worthy of being born a rogue cultivator. "These guys, I really overestimated your courage and strength. Especially you, Chen De, I'm ashamed of you as a Foundation Establishment expert!" Yang Ji scurried away, glaring at their retreating backs and cursing them fiercely in his heart.
+
+After scurrying for about ten breaths, Yang Ji suddenly stopped short. Ahead, as far as his eyes could see, large and small lava pits along the path began to boil, and just like behind him, Flame Snakes emerged from them, including ten Flame Snake Kings, blocking his way. It seemed the commotion Chang Lin caused had truly alarmed the entire snake den.
+
+Just then, an earth-shattering roar echoed from deep within the passage. This roar, full of ferocity and defiance, could only be from the Blazing Sun Beast. Although Yang Ji had been running, he was still paying close attention to Chang Lin's movements, fearing Chang Lin would find the Blazing Sun Beast.
+
+It was truly bad luck, like choking even on cold water. "Blazing Sun Beast, oh Blazing Sun Beast, you're really useless! I gave you a chance, but you didn't seize it. Why didn't you hide properly? What are you doing running out here? Showing off like that is suicide, truly digging your own grave!" Yang Ji cursed under his breath, genuinely anxious for the Blazing Sun Beast that had bolted from its nest. At the same time, Chang Lin's loud laughter was heard. Yang Ji knew then that the Blazing Sun Beast would likely not escape his clutches. Although the Blazing Sun Beast was still fleeing rapidly as far as he could see, its fate was already sealed. With a Golden Core True Person making a move personally, how could it escape the old man Chang Lin's demonic grasp?
+
+Just as he was cursing, Chen De and the other six flashed past him again, having run back, clearly forced to retreat by the Flame Snakes behind them. Yang Ji also didn't stop, quickly following their steps at high speed. But they discovered that amidst this back-and-forth fleeing, Flame Snakes from all directions had already formed an encirclement.
+
+Upon encounter, a fierce battle erupted with a roar. Instantly, swords flashed and blood splattered.
+
+"Kill!" Chen De bellowed. Relying on his powerful Foundation Establishment cultivation, he split a Flame Snake King in half with a single strike. His sword qi, like a bolt of white silk, surged forward, instantly cutting through the snake net and breaking out of the encirclement, heading towards the direction of Chang Lin's laughter.
+
+"Damn it!" Tan Guanghong and the others prepared to pursue him but were surrounded by surging Flame Snakes. Under their desperate defense, the five were instantly scattered by the furiously biting snakes, splitting into pairs and retreating into different passages. Yang Ji's expression darkened. With swarms of snakes writhing in front and roaring behind, he was truly caught between a rock and a hard place.
+
+As he pondered, he immediately chose to charge into the passage that Chang Lin had previously stormed through. Earlier, Chang Lin had displayed great power, shocking all the obstructing Flame Snakes to death, so the passage directly ahead had the fewest Flame Snakes. Thinking of this, after slaying a Level 6 Flame Snake with a flick of his sword, Yang Ji immediately swept his storage bag and pulled out two Blazing Tiger talismans. As soon as they were activated, boom! Energy surged instantly, and the surrounding qi exploded. Two Blazing Tigers, their bodies engulfed in fierce flames, leaped out as the talismans transformed.
+
+The power of the two Level 10 Blazing Tigers was astonishing. Fierce flames swept through, and any low-level Flame Snakes that touched the flames instantly turned to ash. Even the Flame Snake King blocking the path was knocked down instantly, and the two fierce tigers immediately began tearing at it. Seeing the central path wide open, how could Yang Ji hesitate? Behind him, ten Flame Snake Kings with over a hundred low-level Flame Snakes were already closing in. He immediately cast his Lightweight Technique, leaped over the obstructing lava pool, landed in the passage, and sped into its depths. Liu Yongqing, catching a glimpse of Yang Ji blasting open a path, was surprised and immediately followed suit.
+
+Indeed, this path was unobstructed; the Flame Snakes were all corpses, clearly Chang Lin's handiwork. As Yang Ji hurried along, he also collected all the Flame Snake bodies and demon cores along the way. But safety was short-lived. The Flame Snakes, drawn by the scent, had no intention of letting them go. Yang Ji sped for three li and found that Flame Snakes from all directions were again surrounding them along various passages. At this moment, there was truly no way out.
+
+Yang Ji glanced ahead, immediately dashed wildly, running towards the Blazing Sun Beast's old nest. He had previously noticed that the places where the Flame Snakes slept were far from the Blazing Sun Beast's nest, as if they dared not approach. Although the Blazing Sun Beast had run out now, its scent still lingered inside. Yang Ji decided to try hiding within.
+
+Thinking this, he pushed his speed to the limit. After speeding for a full three li, he finally burst into the Blazing Sun Beast's nest. The moment he entered, a whooshing sound came from behind him; it was Liu Yongqing, who had been following him, catching up. The two saw that the end was a closed nest, with no path left. They immediately turned back quickly, nerves taut, preparing for battle.
+
+Just as they thought a life-or-death struggle was about to ensue, the pursuing Flame Snakes stopped about a li away. Even the Flame Snake Kings, despite their fierce glares, dared not approach. After only a few breaths of standoff, the Flame Snakes turned around and headed towards Chen De and the others who were fighting outside. Liu Yongqing and Yang Ji immediately breathed a sigh of relief. Both were puzzled as to why the Flame Snakes dared not approach.
+
+As they turned to examine the nest, their expressions froze. Ahead was a lava pool no more than three zhang in diameter. Lava bubbled within the pool, and in its center, a fist-sized crimson flame burned. The moment they saw this crimson flame, they realized that this nest was several times hotter than outside. Even Yang Ji, who had consumed Ice-Clarity Liquid, felt a scorching heat. Liu Yongqing's forehead also broke out in large beads of sweat.
+
+Besides this crimson flame, they also saw a sturdy small tree in one corner of the lava pool, without leaves, only a trunk. Five reddish-orange fruits hung from it, also resembling burning flames, giving a powerful visual impact. These fruits clearly weren't ordinary. Yang Ji's pupils contracted slightly, but most of his attention was on the crimson flame. This fire was...
+
+Liu Yongqing's body trembled slightly, and he immediately gasped, "This is Earth Spirit Fire... Flame Fruits?!" This Earth Spirit Fire was a spirit fire born from lava. Although it was the lowest grade of spirit fire, it was infinitely better than ordinary ground fire. The Flame Fruits were also extraordinary; consuming them could directly increase cultivation, making them rare spirit fruits.
+
+Looking at the Earth Spirit Fire and Flame Fruits, Yang Ji instantly understood why the Blazing Sun Beast had actively attacked – it was afraid its own nest would be raided. But it underestimated the strength of the intruders and was destined to perish outside in regret.
+
+"Heh heh, Fellow Daoist Yang, these Flame Fruits and Earth Spirit Fire are good stuff, aren't they? How do you plan to divide them?" Liu Yongqing suddenly turned to Yang Ji, smiling eerily. Yang Ji saw [Greed] and [I want it all] appear above his head and couldn't help but feel a chill in his heart.
+
+"All of it?" He had to admit, that was truly too greedy. Yang Ji's eye twitched imperceptibly, and he could only let out a dry laugh. "Fellow Daoist Liu is an expert at Qi Condensation Level 10. We'll still need your help to get out later. So naturally, all these treasures belong to you. If we can't get out, there's no use for me to have them anyway."

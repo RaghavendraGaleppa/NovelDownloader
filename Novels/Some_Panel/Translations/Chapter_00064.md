@@ -1,0 +1,5 @@
+# On-Sale Announcement
+
+Written before anything else, I want to thank my lovely editor. My gratitude also goes out to all the amazing readers who have accompanied me on this journey.
+
+Yes, this book is going premium. I won't get sentimental or complain about my hardships; happy people sleep early, and only poor novelists stay up late every night. For friends who are short on cash, you can earn Qidian coins by watching short videos. Please support me generously, and I will update more frequently. Since you've read this far, please at least give a first subscription. Please offer your full support to this humble author; every single one of your subscriptions is the driving force that keeps me writing. Currently, the book has just over ten thousand collections. If the collection-to-subscription ratio stays within 15, I will update ten thousand characters daily.

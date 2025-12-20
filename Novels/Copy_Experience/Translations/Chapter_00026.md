@@ -1,0 +1,39 @@
+# Chapter 26: Old Xu's Stratagem
+
+In the sky overhead, streaks of light occasionally darted past, circling the vicinity. These were the Mo Family's patrol guards monitoring the ground below. This entire area was covered in spirit fields, wide open and unobstructed, leaving no place for anyone to hide.
+
+During this period, the situation within the market city was tense, yet the Mo Family never dared to directly close it off and prevent everyone from leaving. Doing so would offend too many people and severely disrupt the normal operation of the market city. Without a Foundation Establishment Patriarch overseeing it, they wouldn't dare to incur such widespread public resentment. Thus, they could only intercept those wishing to leave through these patrols. During the day, no one could leave under the watchful eyes of the Mo Family's patrol team. So, they could only seek opportunities at night.
+
+The spirit farmers had already vanished from the surrounding spirit fields; they were all herded back into the market city by the Mo Family cultivators as soon as evening fell. Even some Mo Family cultivators broke into the wooden huts at the edge of the fields to check them. Lu Xu saw this scene and discarded the idea of hiding in his small wooden hut for a while. He followed Old Xu and his granddaughter into the distant mortal town.
+
+This was Lu Xu's first time in this town. He had long suspected that this town harbored hidden dangers, possibly concealing many rogue cultivators, which was why he had always been reluctant to come. But this time, he had no choice. After entering the town, Lu Xu subtly noticed a significant number of cultivators present. He even spotted a familiar figure.
+
+"Yin Yu, is that her?" Lu Xu was slightly surprised, looking at the fleeting red-clad figure. She didn't go to the Divine Wood Sect ruins? Or had she already been there and returned? Lu Xu didn't go up to greet Hong Yuyu; the other party probably wouldn't recognize him now.
+
+"It seems quite a lot of people want to leave!" Lu Xu thought to himself. The more people, the better, of course. He found a teahouse and slowly sipped tea, waiting for the sun to set. Waiting in this town until dark, then breaking through and escaping the sphere of influence of Qinghu Market City – this was everyone's consensus!
+
+Half an hour later, the sun completely set, its afterglow painting the horizon. By then, the Mo Family patrol guards had driven all cultivators visible within their line of sight back to the market city, except for that mortal town! Qinghu Market City was closed, and the second-tier grand formation emitted a faint glow under the night sky. "Whoosh! Whoosh!" Sharp whistling sounds rang out as Mo Family patrol cultivators, riding their magical artifacts, flew towards the checkpoints they had previously set up.
+
+"More than twenty people, if spread out, are enough to monitor this entire area!"
+
+"The Mo Family's patrol team is not easy to deal with; it's better to wait for others to make the first move!"
+
+Hidden in the darkness, Lu Xu watched the light emanating from the magical artifacts, an unusual glint in his eyes. The patrol guards were a very powerful force cultivated by the Mo Family, arguably their strongest combat team. In the hundreds of years since its establishment, the patrol guards had constantly fought rogue cultivators and demonic beasts; every cultivator within was rich in combat experience. The lowest cultivation level for Mo Family cultivators joining the guard was Qi Refining Fourth Layer; they were absolute elites. And its current leader, Mo Yuancheng, was an expert at Qi Refining Ninth Layer; very few in the entire Qinghu Market City could rival him. Among the rogue cultivators, there was no one who could contend with him. If such a strong individual existed, they would have long gone to explore the Divine Wood Sect ruins instead of lurking suspiciously here.
+
+Fortunately, after the Mo Family Patriarch left, Mo Yuancheng and most of the patrol guard's forces were recalled to the market city to defend the Mo Family. The patrol guard's strength was now greatly diminished, thus presenting an opportunity for Lu Xu and others.
+
+The waiting was tormenting. In the darkness, countless eyes gleamed, fixed on the distant sky. The darker and quieter it was, the more tense people became. This emotion continued to brew until an hour later. Just as the restlessness in many people's hearts became unbearable, and they yearned to charge out, suddenly, with a "bang!", a firework shot straight into the sky and exploded loudly. In the darkness, this firework was exceptionally conspicuous and dazzling, instantly capturing everyone's attention.
+
+Everyone's heart skipped a beat, their emotions instantly stimulated, unable to suppress the urge to erupt. Magical artifacts immediately appeared in their hands, glowing brightly. They all realized that this firework must be a signal—a signal to act! Could it be that someone had been secretly planning something and was now ready to initiate it? The Mo Family cultivators suddenly tensed up, a terrible thought emerging in their minds: This group of rogue cultivators was premeditated and organized; they had secretly colluded long ago, brewing who knew what conspiracy. As soon as they thought of this, many Mo Family cultivators immediately entertained the idea of retreating. Anyway, the mission given to them by their superiors was to block if they could, and if not, then so be it. Since that was the case, why risk their lives? On the rogue cultivators' side, everyone felt a surge of excitement. It turned out that their side had already made plans for a big move.
+
+If that were the case, why not seize the opportunity to stir up trouble, disrupt the situation a bit, and sneak out? And at this moment, just as everyone was ready and their emotions were stirred to their peak, an old, angry roar rang out: "Brothers, charge out and teach those Mo Family brats a lesson!"
+
+The voice was so clear and resonant, echoing under the night sky, allowing everyone to hear it distinctly. After the words fell, a moment of silence was immediately followed by a chorus of responses: "Charge!" "Kill your way out!" Accompanied by various roars, countless shadowy figures immediately surged out of the darkness.
+
+"Stop them!" A loud shout came from the Mo Family's side, and their cultivators uniformly activated their Spirit Eye Technique, scanning the surroundings. "Bang!" "Clang!" Sounds of various magical artifacts clashing could be heard, and the light of artifacts and talismans flew everywhere.
+
+However, the person who had just shouted fell silent. Almost no one noticed an old man quietly leading another figure beside him, blending in with those slipping outside.
+
+"Old Xu, Old Xu, I didn't realize you had such guts!" Lu Xu followed behind, secretly chuckling at the furtive figures of Old Xu and his granddaughter. That's right, the firework just now was set off by Old Xu. To stir up the situation and fish in troubled waters, this old man actually came up with such a method. He was quite bold; if it were Lu Xu, he would never dare to do something like this. What if setting off the firework instead drew the Mo Family's attention and made him the target of everyone? It's better not to take such risks; letting others charge forward and staying hidden behind is the safest.
+
+However, Old Xu was also lucky; his timing for this move was extremely clever, hitting everyone's emotional breaking point and instantly igniting the flame. Now, with chaos all around, his opportunity had arrived. And Lu Xu also followed behind him, quietly blending in as they slipped out.

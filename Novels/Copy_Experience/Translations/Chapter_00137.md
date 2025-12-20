@@ -1,0 +1,3 @@
+**Chapter 136: Wei Family's Scheme**
+
+It is likely the balance of the Heavenly Dao: for every gain, there is a loss. Just like this evil spirit, gaining its combat power means losing its loyalty. No one has ever truly subdued this kind of ghost. Greed and betrayal of its master are deeply ingrained in its very bones and will never change. As long as it can devour its original master, it will gain immense improvement, not only attaining freedom but also experiencing a surge in strength. This is why the evil spirits summoned by the Thousand Soul Banner repeatedly refuse to mend their ways, no matter how they are disciplined.

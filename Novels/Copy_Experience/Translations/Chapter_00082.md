@@ -1,0 +1,3 @@
+Chapter 81: Ancient Divine Arts
+
+Lu Xu picked up these jade slips and probed them with his spiritual sense, examining them carefully. Each jade slip had a restriction, allowing him to only see some introductory content and a preface for the cultivation method. Through these, he could roughly understand the general nature of the cultivation methods. To view the subsequent content, one would need the corresponding method to unlock the restrictions. Otherwise, even if an outsider obtained the jade slip and tried to forcefully examine it, it would only result in the jade slip's destruction and the disappearance of its contents.

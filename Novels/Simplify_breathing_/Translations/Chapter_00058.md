@@ -1,0 +1,19 @@
+# Chapter 58: Cracks
+
+The archery manual obtained in Xingfen City not only granted Chen Fei some new techniques, but also brought about a significant change: he could now freely shoot arrows while executing movement techniques. The two complemented each other, neither hindering the other, and his shooting accuracy remained unaffected. Thus, even with He Yuanqiu pursuing him from behind, it didn't disrupt Chen Fei's continued slaughter of the Shallowwater Gang members below. Slowly, some people started to break down; the agony of simply waiting for death was unbearable. Some began to leap out directly, charging towards Chen Fei, only to be met by an arrow. For most of the Shallowwater Gang members, who were only at the Muscle-refinement Realm, Chen Fei's arrows were lethal. Even those at the Bone-forging Realm would be targeted by Chen Fei with several consecutive shots, eventually collapsing.
+
+"Gang... Gang Leader, could this person be here to rescue that old man?" someone whispered next to Xu Zaichuan.
+
+"Then you go hostage that old man and threaten him," Xu Zaichuan shot a glance at his subordinate, who instinctively shrank his head, daring not to speak further. Whether this person was here to rescue someone was no longer the crucial point.
+
+Chen Fei's figure flickered, appearing before Chi Defeng. Seeing the injuries on Chi Defeng's body, his expression subtly darkened. He estimated that if he had arrived any later, even if he could save Chi Defeng, the man would have been crippled.
+
+"You must leave quickly!" Chi Defeng looked at Chen Fei, gratitude in his eyes, but felt that coming here alone was too dangerous and reckless.
+
+Xu Zaichuan was stunned when Chen Fei suddenly appeared in front of him, then immediately overjoyed. From a distance, Xu Zaichuan truly had no way to deal with Chen Fei; a blind charge would have been suicide. But now, with only a few meters separating them, Xu Zaichuan just needed to block one of Chen Fei's arrows to get close. Holding him for a moment would buy enough time for He Yuanqiu to arrive. If Chen Fei dared to flee, Xu Zaichuan would feign killing Chi Defeng on the ground. Such a move, leveraging the fear of harming an innocent, would surely disrupt Chen Fei's judgment. "Utterly foolish!" Xu Zaichuan laughed wildly in his heart, never expecting Chen Fei's objective to be exposed so easily; truly an imbecile. As these thoughts raced through his mind, Xu Zaichuan saw Chen Fei draw his bow and quickly became vigilant, only to realize that Chen Fei's first arrow was aimed at He Yuanqiu, completely ignoring his side. "You're courting death!"
+
+"Hah!" Xu Zaichuan was also a ruthless man. Knowing the urgency of the situation, he risked crippling his wrist, forcefully gripped his saber hilt, and continued to slash the blade towards Chen Fei. But ultimately, it was a strained effort. His normally fluid saber art faltered for a moment, and both the force and precision were vastly different from before. Before the blade could even touch Chen Fei's body, Xu Zaichuan saw a flash of white light before his eyes. A long sword, at an inconceivable angle, thrust towards his throat. Xu Zaichuan's eyes widened. He instinctively wanted to retreat, but his body had already committed all its strength to the forward swing. Now, with two opposing forces, his entire body stiffened, and he watched helplessly as the sword blade pierced his neck.
+
+"Splat!" Chen Fei withdrew his sword. A thin crack appeared on Xu Zaichuan's neck. His body instinctively tensed its muscles around the wound, a trickle of blood oozing out. Xu Zaichuan stared blankly at Chen Fei, his eyes filled with disbelief, dread, and terror.
+
+"Zaichuan!"

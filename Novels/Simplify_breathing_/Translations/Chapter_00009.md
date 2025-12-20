@@ -1,0 +1,23 @@
+# Chapter 9: Matryoshka
+
+In the following days, Zeng Defang continued to guide Chen Fei's pill refining techniques. After concealing his true skill for a few days, Chen Fei finally revealed his mastery-level skill in refining Blood Qi Pills. Zeng Defang burst into hearty laughter, feeling deeply comforted and pleased. He even patted Chen Fei's shoulder several times with force.
+
+"Now that you've reached this point, there's nothing more I can teach you about Blood Qi Pills. From now on, your progress will depend on your insights gained during your daily refining practice."
+
+Zeng Defang's skill in refining Blood Qi Pills naturally surpassed the mastery level. However, once one reached mastery, there were essentially no problems with the refining techniques themselves; all that was lacking were some subtle adjustments to the heat control. Such adjustments were difficult to convey through words and required the alchemist's own understanding and practice. Moreover, mastery-level Blood Qi Pills could already be sold normally, meaning Chen Fei could start earning money.
+
+According to the agreement with Qingzheng Medical Hall, Chen Fei would receive thirty percent of the remaining profit after deducting the cost of medicinal ingredients from the Blood Qi Pills he refined each month. Was it a small amount? Certainly not. Chen Fei was quite satisfied with this outcome. After all, Chen Fei only needed to refine pills; the medicinal ingredients, the shop, the alchemy furnace, and sales were all unrelated to him. Supported by Qingzheng Medical Hall, Chen Fei only needed to diligently refine pills.
+
+Publicly, Chen Fei naturally wouldn't display such a high level of alchemy, nor would he reveal his secret of rapid cultivation through massive pill consumption. Consequently, any surplus pills Chen Fei refined were directly consumed by him. Blood Qi Pills truly lived up to their reputation as pills for ordinary martial artists. One Blood Qi Pill could increase Chen Fei's cultivation progress by 1 point. Chen Fei could consume five Blood Qi Pills a day, and coupled with the cultivation growth from his own cultivation method, his daily cultivation progress reached 6 points.
+
+"Even if the Wind Suspension Breathing Method wasn't simplified, I would still only need less than five months to break through to the Muscle Forging Realm," Chen Fei muttered to himself, experiencing the power of pills—or rather, the power of money—for the first time.
+
+One tael of silver could buy five Blood Qi Pills. An ordinary guard at the medical hall earned enough in a month to buy only twenty-five Blood Qi Pills. Consequently, the guards rarely bought Blood Qi Pills for cultivation, as it was too expensive. Only those with martial arts potential would be willing to make such an investment. And even then, this investment would have to continue for several years before any results might be seen. In Pingyin County, only disciples of aristocratic families or core disciples from places like Jishan Boxing Gym could, like Chen Fei now, consume the maximum daily amount of Blood Qi Pills to rapidly catch up in cultivation.
+
+"Skilled alchemists truly make money. And I'm just refining Blood Qi Pills," Chen Fei shook his head slightly, tossed a Blood Qi Pill into his mouth to refine, and a faint smile appeared on his face.
+
+To those who noticed his unusual vitality and quick progress, they could only attribute it to his peculiar habit of consuming stir-fried pig liver. Besides this, they truly couldn't think of any other reason. Some, unwilling to accept it, followed Chen Fei for several days, only to witness him eating stir-fried pig liver every time. And each time Chen Fei stir-fried it, he only used a fingernail-sized piece of pig liver, which left observers dumbfounded. What kind of bizarre habit was this?!
+
+"Normally, it's not good to withdraw silver in advance, but I understand your situation. After consulting Steward Cui, he has agreed. Here are thirty taels of silver; please take good care of them."
+
+The accountant handed the money to Chen Fei, who, after a quick glance, broke into a smile. With the amount of pills Chen Fei intentionally controlled for refining, his monthly income was roughly fifty taels, ten times that of an ordinary guard. How could this not make others envious? The medical hall's agreement to an early withdrawal of thirty taels clearly indicated that they saw Chen Fei's potential and understood his ability to repay, which was why they were so accommodating.

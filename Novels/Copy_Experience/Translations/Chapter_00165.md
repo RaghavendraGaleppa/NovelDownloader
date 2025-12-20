@@ -1,0 +1,3 @@
+Chapter 163: Confronting Wei Mingyang Again
+
+Wei Mingyang went against them, his expression cold and his face devoid of emotion. After his gaze swept over Lu Xu a few times, he coldly said, "It's best that no one knows about us coming here. Otherwise, what if something unexpected happens? Let's just kill this person. He's just a perfected Foundation Establishment cultivator, there's nothing worth protecting about him!" His stance aligned with that of the great demons. Whether it was True Master Baiyun or...

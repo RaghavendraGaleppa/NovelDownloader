@@ -1,0 +1,21 @@
+# Chapter Thirty-Eight: Rebel Army Enters the City
+
+Upon hearing this news, everyone in Pingyin County was thrown into a panic. The imperial army had actually fled directly. They had previously promised that if the rebel army arrived, they would charge forward and fight. That's why the aristocratic families of Pingyin County had contributed so many resources; they feared the rebel army would arrive and directly loot them. After all, sometimes the imperial army still cared about appearances, but the rebels wouldn't bother with such niceties. But now, the imperial army had vanished.
+
+The people of Pingyin County were somewhat at a loss. As for resistance, closing the city gates could hold them off for a while. But how long that 'while' would last was unclear. After all, Pingyin County had no military forces, only the yamen runners and constables from the county office, and the defensive equipment was rudimentary. Resisting the surging rebel army would be extremely difficult. Moreover, there was another problem: if they stubbornly resisted to the end, and the city eventually fell, the entire Pingyin County would undoubtedly be plundered clean. According to reports from other towns, any town that resisted faced a fate of being burned, killed, and plundered. So many refugees were created this way. If they didn't resist and simply opened the gates to surrender, their fate might be slightly better. But only slightly. These rebel forces focused on conquering and seizing territory, not on long-term governance. Their most important goal was resources of all kinds. Pingyin County was at a loss. Both options were difficult; both seemed to spell death. It was merely a choice between dying on one's feet or on one's knees.
+
+If the county yamen had been resolute in defending the city, they would naturally have stationed heavy troops at each city gate. But with such an indecisive mindset, the defense of the city gates naturally became a joke.
+
+Chen Fei remained in his courtyard, listening to the commotions outside, a flicker of irritation in his heart. Just a few days ago, he had thought the rebels wouldn't come, yet now they were directly before him. After receiving news of the rebel arrival, the medical clinic had already closed. Chen Fei had initially considered hiding at the Zhang family's estate, but after some thought, he decided against it. When the rebel army entered the city, their biggest targets were precisely these aristocratic families. Hiding inside, Chen Fei could easily be caught in the crossfire. Furthermore, the Zhang family hadn't invited Chen Fei to their manor, clearly not intending to shelter him. As for whether the rebels would loot the common people, that depended on how low their moral bottom line was. If worst came to worst, Chen Fei would just have to strike and retreat. At this moment, the utility of his disguise technique became apparent; at least he wouldn't be easily recognized.
+
+"This disguise technique probably still has flaws in the eyes of true masters. If I get the chance in the future, I should find a stronger disguise technique to learn." Chen Fei's thoughts churned. He returned to his alchemy room, went to a washbasin, and submerged his entire face in cold water.
+
+"General Tan's demands, we will do our utmost to meet them," the county magistrate said, looking at Tan Zhen'an with a fawning smile.
+
+"With your words, I can rest assured. Otherwise, if someone fails to deliver, they might claim we didn't inform them beforehand." Tan Zhen'an's gaze swept past the magistrate and landed on the representatives of the various aristocratic families. He announced, "The Zhao family, one hundred thousand taels of silver and one thousand refined iron blades. The Li family, eighty thousand taels of silver and one thousand half-body rattan armors. The Zhou family..."
+
+As Tan Zhen'an rattled off the numbers, the faces of the aristocratic families' representatives turned pale. This was practically stripping them of their entire fortune, leaving absolutely nothing behind.
+
+"My Zhou family has suffered from mismanagement in recent years and cannot produce such a large sum of silver. I beg General Tan to be lenient."
+
+"Indeed, my Zheng family is but a small household; how could we possibly have..."
