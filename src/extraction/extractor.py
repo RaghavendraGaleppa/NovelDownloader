@@ -409,6 +409,7 @@ def run_extraction(args: argparse.Namespace):
     start_url = args.start_url
     workers = args.workers
     max_chapters = args.max_chapters
+    start_chapter = getattr(args, 'start_chapter', 1)
     
     # Selenium is default, use CloudScraper only if explicitly requested
     use_cloudscraper = getattr(args, 'use_cloudscraper', False)
@@ -420,7 +421,7 @@ def run_extraction(args: argparse.Namespace):
     
     console.print(f"\n{'='*60}", style="bold magenta")
     console.print(f"🚀 Starting Extraction for: {novel_title}", style="bold magenta")
-    console.print(f"   Workers: {workers}, Max Chapters: {max_chapters}", style="magenta")
+    console.print(f"   Workers: {workers}, Max Chapters: {max_chapters}, Start Chapter: {start_chapter}", style="magenta")
     console.print(f"   Scraper: {scraper_type}", style="magenta")
     console.print(f"{'='*60}\n", style="bold magenta")
     

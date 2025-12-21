@@ -27,7 +27,31 @@ from src.scraping.parse_chapter import main as scrape_main
 from src.translation.translator import perform_api_validation, translate_novel_by_id
 from src.conversion.epub_converter import convert_folder_md_to_epub
 from src.extraction.extractor import run_extraction
+from src.evaluation.runner import run_evaluation
+from src.evaluation.report import save_report, print_summary
 from src.main import db_client
+
+
+def cmd_evaluate(args):
+    """Handle the evaluate subcommand"""
+    print("📊 Starting translation quality evaluation...")
+    
+    # Parse providers list
+    providers = [p.strip() for p in args.providers.split(',')]
+    
+    # Run evaluation
+    report = run_evaluation(
+        test_data_dir=args.test_dir,
+        translation_providers=providers,
+        judge_provider=args.judge,
+        use_bert_precheck=not args.skip_bert
+    )
+    
+    # Print summary
+    print_summary(report)
+    
+    # Save report
+    save_report(report, args.output_dir)
 
 
 def cmd_extract(args):
@@ -383,6 +407,12 @@ def main():
         help='Number of parallel worker threads (default: 1).'
     )
     extract_parser.add_argument(
+        '--start-chapter',
+        type=int,
+        default=1,
+        help='Chapter number to start processing from (optional).'
+    )
+    extract_parser.add_argument(
         '-m', '--max-chapters',
         type=int,
         default=1000,
@@ -404,6 +434,40 @@ def main():
         help="Skip API validation before starting extraction."
     )
     extract_parser.set_defaults(func=cmd_extract)
+    
+    # ===== EVALUATE SUBCOMMAND =====
+    evaluate_parser = subparsers.add_parser(
+        'evaluate',
+        help='Evaluate translation quality using LLM-as-Judge',
+        description='Run reference-based evaluation comparing LLM translations against human references.',
+        formatter_class=argparse.RawTextHelpFormatter
+    )
+    evaluate_parser.add_argument(
+        '-d', '--test-dir',
+        default='./test_data',
+        help='Directory containing test data (raws/ and translated/ subdirs). Default: ./test_data'
+    )
+    evaluate_parser.add_argument(
+        '-p', '--providers',
+        default='chutes',
+        help='Comma-separated list of translation providers to test. Default: chutes'
+    )
+    evaluate_parser.add_argument(
+        '-j', '--judge',
+        default='google',
+        help='Provider to use as the judge. Default: google'
+    )
+    evaluate_parser.add_argument(
+        '-o', '--output-dir',
+        default='./evaluation_results',
+        help='Directory to save evaluation reports. Default: ./evaluation_results'
+    )
+    evaluate_parser.add_argument(
+        '--skip-bert',
+        action='store_true',
+        help='Skip BERTScore pre-check (faster but less info).'
+    )
+    evaluate_parser.set_defaults(func=cmd_evaluate)
     
     # Parse arguments
     args = parser.parse_args()

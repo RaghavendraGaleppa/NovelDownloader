@@ -18,10 +18,11 @@ api_providers = {
     "openrouter": {
         "url": "https://openrouter.ai/api/v1/chat/completions",
         "model_names": [
-            "deepseek/deepseek-chat-v3-0324:free",
-            "google/gemini-2.0-flash-exp:free",
-            "meta-llama/llama-4-maverick:free",
-            "qwen/qwq-32b:free"
+            "xiaomi/mimo-v2-flash:free",
+            "nex-agi/deepseek-v3.1-nex-n1:free",
+            "qwen/qwen3-coder:free",
+            "moonshotai/kimi-k2:free",
+            "google/gemma-3n-e2b-it:free"
         ]
     },
     "google": {
