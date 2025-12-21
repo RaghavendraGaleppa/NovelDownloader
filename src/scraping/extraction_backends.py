@@ -460,7 +460,11 @@ class EBNovel543(ExtractionBackend):
             
             # Convert relative URLs to absolute URLs if current_url is provided
             if current_url and href:
-                return urljoin(current_url, str(href))
+                next_url = urljoin(current_url, str(href))
+                # #region agent log
+                import json; open('/home/raghavendragaleppa/Desktop/Novels/NovelDownloader/.cursor/debug.log','a').write(json.dumps({"hypothesisId":"B","location":"EBNovel543.get_next_chapter_url","message":"Next chapter URL found","data":{"current_url":current_url,"next_url":next_url,"href":str(href)},"timestamp":__import__('time').time(),"sessionId":"debug-session"})+'\n')
+                # #endregion
+                return next_url
             return str(href) if href else None
         
         return None  # Return None if the next chapter link is not found
@@ -482,6 +486,9 @@ class EBNovel543(ExtractionBackend):
         # Try to find chapter number in <h1> tag
         # Format: "第1章 青梅竹馬是未來女帝？ (1/2)"
         h1_tag = soup.find('h1')
+        # #region agent log
+        import json; open('/home/raghavendragaleppa/Desktop/Novels/NovelDownloader/.cursor/debug.log','a').write(json.dumps({"hypothesisId":"A","location":"extraction_backends.py:get_chapter_number","message":"H1 tag found","data":{"h1_text":h1_tag.get_text(strip=True) if h1_tag else None,"current_url":current_url},"timestamp":__import__('time').time(),"sessionId":"debug-session"})+'\n')
+        # #endregion
         if h1_tag and isinstance(h1_tag, Tag):
             h1_text = h1_tag.get_text(strip=True)
             # Pattern for "第X章"
@@ -512,7 +519,10 @@ class EBNovel543(ExtractionBackend):
         # URL-based fallback extraction if HTML parsing failed
         if not chapter_number and current_url:
             chapter_number = self._extract_chapter_from_url(current_url)
-                    
+        
+        # #region agent log
+        import json; open('/home/raghavendragaleppa/Desktop/Novels/NovelDownloader/.cursor/debug.log','a').write(json.dumps({"hypothesisId":"A","location":"EBNovel543.get_chapter_number:return","message":"Final chapter number for novel543","data":{"chapter_number":chapter_number,"current_url":current_url},"timestamp":__import__('time').time(),"sessionId":"debug-session"})+'\n')
+        # #endregion
         return chapter_number
     
     def _extract_chapter_from_url(self, url: str) -> Optional[str]:

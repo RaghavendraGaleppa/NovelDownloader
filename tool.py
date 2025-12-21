@@ -26,7 +26,14 @@ sys.path.append(os.path.join(current_folder, "src"))
 from src.scraping.parse_chapter import main as scrape_main
 from src.translation.translator import perform_api_validation, translate_novel_by_id
 from src.conversion.epub_converter import convert_folder_md_to_epub
+from src.extraction.extractor import run_extraction
 from src.main import db_client
+
+
+def cmd_extract(args):
+    """Handle the extract subcommand"""
+    print("🔄 Starting synchronized extraction (scrape + translate)...")
+    run_extraction(args)
 
 
 def cmd_scrape(args):
@@ -207,7 +214,7 @@ def main():
     subparsers = parser.add_subparsers(
         dest='command',
         help='Available commands',
-        metavar='{scrape,translate,convert,validate,info}'
+        metavar='{scrape,translate,convert,validate,info,extract}'
     )
     
     # ===== SCRAPE SUBCOMMAND =====
@@ -353,6 +360,51 @@ def main():
     )
     list_parser.set_defaults(func=cmd_list)
     
+    # ===== EXTRACT SUBCOMMAND =====
+    extract_parser = subparsers.add_parser(
+        'extract',
+        help='Extract and translate chapters from Novel543.com in one synchronized process',
+        description='Scrape chapters completely (including all parts) and translate immediately.\nThis ensures multi-part chapters are fully scraped before translation begins.',
+        formatter_class=argparse.RawTextHelpFormatter
+    )
+    extract_parser.add_argument(
+        '-n', '--novel-title',
+        required=True,
+        help='Title of the novel.'
+    )
+    extract_parser.add_argument(
+        '-s', '--start-url',
+        help='TOC URL or first chapter URL for Novel543.com. Required for new novels.'
+    )
+    extract_parser.add_argument(
+        '-w', '--workers',
+        type=int,
+        default=1,
+        help='Number of parallel worker threads (default: 1).'
+    )
+    extract_parser.add_argument(
+        '-m', '--max-chapters',
+        type=int,
+        default=1000,
+        help='Maximum number of chapters to process (default: 1000).'
+    )
+    extract_parser.add_argument(
+        '-o', '--output-path',
+        help='Custom output directory path.'
+    )
+    extract_parser.add_argument(
+        '--use-cloudscraper',
+        action="store_true",
+        help="Use CloudScraper instead of Selenium (Selenium is default)."
+    )
+    extract_parser.add_argument(
+        '-sv', '--skip-validation',
+        action="store_true",
+        default=False,
+        help="Skip API validation before starting extraction."
+    )
+    extract_parser.set_defaults(func=cmd_extract)
+    
     # Parse arguments
     args = parser.parse_args()
     
@@ -394,6 +446,11 @@ def main():
         print('python tool.py list  # See all novels in DB')
         print('python tool.py translate -n "My Novel" -w 2 -m 20  # Translate 20 chapters')
         print('python tool.py convert -f "./Novels/My_Novel/My_Novel-English" -o "my_novel.epub" -t "My Novel" -a "Author"')
+        print()
+        print("# Extract (scrape + translate in one step) - Novel543.com only (uses Selenium by default):")
+        print('python tool.py extract -n "My Novel" -s "https://www.novel543.com/123456/dir" -m 10')
+        print('python tool.py extract -n "My Novel" -s "https://www.novel543.com/123456/dir" -m 10 --use-cloudscraper  # Use older method')
+        print('python tool.py extract -n "My Novel" -s "https://www.novel543.com/123456/dir" -m 10 -sv  # Skip API validation')
         return
     
     # Call the appropriate function

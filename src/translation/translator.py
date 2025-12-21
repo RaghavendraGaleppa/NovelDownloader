@@ -97,6 +97,9 @@ def _process_single_chapter_from_db(
     try:
         with open(raw_chapter["saved_at"], 'r', encoding='utf-8') as f:
             chapter_content = f.read()
+        # #region agent log
+        import json; open('/home/raghavendragaleppa/Desktop/Novels/NovelDownloader/.cursor/debug.log','a').write(json.dumps({"hypothesisId":"D","location":"translator.py:_process_single_chapter_from_db","message":"Raw chapter file read","data":{"saved_at":raw_chapter["saved_at"],"content_length":len(chapter_content),"has_separator":"---" in chapter_content,"chapter_num":chapter_num},"timestamp":__import__('time').time(),"sessionId":"debug-session"})+'\n')
+        # #endregion
     except Exception as e:
         console.print(f"Error reading raw chapter file {raw_chapter['saved_at']}: {e}", style="red")
         raise

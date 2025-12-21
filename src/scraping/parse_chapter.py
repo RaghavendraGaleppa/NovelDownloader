@@ -449,6 +449,10 @@ def _upsert_raw_chapter_record(
         }
     }
     
+    # #region agent log
+    import json; open('/home/raghavendragaleppa/Desktop/Novels/NovelDownloader/.cursor/debug.log','a').write(json.dumps({"hypothesisId":"C","location":"parse_chapter.py:_upsert_raw_chapter_record","message":"DB record upsert","data":{"novel_id":str(novel_id),"chapter_number":chapter_number,"title":title,"saved_at":saved_at},"timestamp":__import__('time').time(),"sessionId":"debug-session"})+'\n')
+    # #endregion
+    
     raw_chapters_collection.update_one(
         filter_query,
         update_payload,
@@ -480,6 +484,10 @@ def _create_chapter_file(output_dir_path: str, chapter_num_str: str, title: str,
         
         # Use append mode if file exists, write mode if new
         mode = 'a' if file_exists else 'w'
+        
+        # #region agent log
+        import json; open('/home/raghavendragaleppa/Desktop/Novels/NovelDownloader/.cursor/debug.log','a').write(json.dumps({"hypothesisId":"C","location":"parse_chapter.py:_create_chapter_file","message":"File save operation","data":{"filepath":filepath,"file_exists":file_exists,"mode":mode,"chapter_num_str":chapter_num_str,"title":title,"paragraphs_count":len(paragraphs) if paragraphs else 0},"timestamp":__import__('time').time(),"sessionId":"debug-session"})+'\n')
+        # #endregion
         
         with open(filepath, mode, encoding='utf-8') as f:
             if not file_exists:
