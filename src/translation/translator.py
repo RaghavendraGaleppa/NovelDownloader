@@ -23,11 +23,16 @@ try:
     from src.translation.openrouter import translate_chinese_to_english, api_providers, LOADED_API_KEYS
     TRANSLATION_AVAILABLE = True
 except ImportError:
-    console.print("⚠️  WARNING: openrouter.py not found or its components could not be imported.", style="yellow")
-    console.print("Translation functionality will be disabled; using placeholder.", style="yellow")
-    TRANSLATION_AVAILABLE = False
-    api_providers = {} # Define as empty if import fails
-    LOADED_API_KEYS = []
+    try:
+        # Fallback for when running from src directory
+        from translation.openrouter import translate_chinese_to_english, api_providers, LOADED_API_KEYS
+        TRANSLATION_AVAILABLE = True
+    except ImportError:
+        console.print("⚠️  WARNING: openrouter.py not found or its components could not be imported.", style="yellow")
+        console.print("Translation functionality will be disabled; using placeholder.", style="yellow")
+        TRANSLATION_AVAILABLE = False
+        api_providers = {} # Define as empty if import fails
+        LOADED_API_KEYS = []
 
 def create_translation_progress_record(db: Database, novel_id: ObjectId, raw_chapter_id: ObjectId, translated_title: str) -> ObjectId:
     """
@@ -301,6 +306,49 @@ def translate_novel_by_id(novel_id: str, workers: int = 1, skip_validation: bool
         else:
             console.print(f"Waiting for new chapters to be added to the database...", style="bold blue")
             time.sleep(10)
+
+
+def retranslate_single_chapter(novel_id: str, chapter_number: int) -> tuple[bool, str]:
+    """
+    Retranslates a single chapter by ID and chapter number.
+    Returns (success, message).
+    """
+    if not TRANSLATION_AVAILABLE:
+        return False, "Translation module not available"
+
+    db = db_client
+    try:
+        novel_object_id = ObjectId(novel_id)
+    except Exception:
+        return False, "Invalid novel ID format"
+
+    # 1. Fetch Novel Info (for path)
+    novel = db.novels.find_one({"_id": novel_object_id})
+    if not novel:
+        return False, f"Novel with id {novel_id} not found."
+    
+    novel_folder_path = novel.get("folder_path")
+    if not novel_folder_path:
+        return False, "Novel is missing 'folder_path'."
+
+    # 2. Fetch Raw Chapter
+    raw_chapter = db.raw_chapters.find_one({
+        "novel_id": novel_object_id,
+        "chapter_number": chapter_number
+    })
+    
+    if not raw_chapter:
+        return False, f"Raw chapter {chapter_number} not found. Cannot retranslate."
+
+    # 3. Process (Retranslate)
+    try:
+        console.print(f"🔄 Retranslating chapter {chapter_number} for novel {novel.get('novel_name')}", style="bold magenta")
+        # Reuse the existing processing logic which handles updates/overwrites
+        _process_single_chapter_from_db(raw_chapter, db, novel_folder_path)
+        return True, "Retranslation successful"
+    except Exception as e:
+        console.print(f"❌ Retranslation failed: {e}", style="red")
+        return False, str(e)
 
 
 def validate_api_keys() -> tuple[bool, str | None]:

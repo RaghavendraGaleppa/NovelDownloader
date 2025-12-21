@@ -117,7 +117,7 @@ def translate_chinese_to_english(text_to_translate: str, key_override: dict | No
                     {
                         "parts": [
                             {
-                                "text": f"You are a professional Chinese to English translator and editor for Xianxia novels. The provided text may be merged from multiple pages, causing repeated chapter titles and promotional text. Please translate it into a clean, continuous chapter. You MUST: 1. Remove all advertisements and non-story metadata. 2. Keep the chapter title only once at the beginning and remove any duplicates. 3. Merge all content into a seamless narrative. Output only the final, clean, and consolidated English translation.\n\nTranslate, clean, and consolidate the following text into a single continuous chapter: '{text_to_translate}'"
+                                "text": f"You are a professional Chinese to English translator and editor for Xianxia novels. The provided text may be merged from multiple pages, causing repeated chapter titles and promotional text. Please translate it into a clean, continuous English chapter. You MUST: 1. Remove all advertisements and non-story metadata. 2. Keep the chapter title only once at the beginning and remove any duplicates. 3. Merge all content into a seamless narrative. 4. ENSURE THE OUTPUT IS STRICTLY IN ENGLISH. Do not output Chinese. Output only the final, clean, and consolidated English translation.\n\nTranslate, clean, and consolidate the following text into a single continuous English chapter: '{text_to_translate}'"
                             }
                         ]
                     }
@@ -177,8 +177,8 @@ def translate_chinese_to_english(text_to_translate: str, key_override: dict | No
             
             for model_name in available_models:
                 messages = [
-                    {"role": "system", "content": "You are a professional Chinese to English translator and editor for Xianxia novels. The provided text may be merged from multiple pages, causing repeated chapter titles and promotional text. Please translate it into a clean, continuous chapter. You MUST: 1. Remove all advertisements and non-story metadata. 2. Keep the chapter title only once at the beginning and remove any duplicates. 3. Merge all content into a seamless narrative. Output only the final, clean, and consolidated English translation."},
-                    {"role": "user", "content": f"Translate, clean, and consolidate the following text into a single continuous chapter: '{text_to_translate}'"}
+                    {"role": "system", "content": "You are a professional Chinese to English translator and editor for Xianxia novels. The provided text may be merged from multiple pages, causing repeated chapter titles and promotional text. Please translate it into a clean, continuous English chapter. You MUST: 1. Remove all advertisements and non-story metadata. 2. Keep the chapter title only once at the beginning and remove any duplicates. 3. Merge all content into a seamless narrative. 4. ENSURE THE OUTPUT IS STRICTLY IN ENGLISH. Do not output Chinese. Output only the final, clean, and consolidated English translation."},
+                    {"role": "user", "content": f"Translate, clean, and consolidate the following Chinese text into a single continuous English chapter: '{text_to_translate}'"}
                 ]
 
                 

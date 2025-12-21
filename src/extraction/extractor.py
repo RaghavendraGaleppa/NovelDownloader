@@ -488,6 +488,12 @@ def run_extraction(args: argparse.Namespace):
     if not chapters:
         console.print("❌ No chapters found in TOC.", style="red")
         return
+
+    # Filter chapters based on start_chapter
+    if start_chapter > 1:
+        console.print(f"🔍 Filtering chapters starting from {start_chapter}...", style="cyan")
+        chapters = [c for c in chapters if c['chapter_num'] >= start_chapter]
+        console.print(f"   Remaining chapters to process: {len(chapters)}")
     
     # Limit to max_chapters
     chapters_to_process = chapters[:max_chapters]

@@ -25,6 +25,7 @@ from api_serializers.novel_serializer import (
     NovelDataSerializer,
     TranslatedChapterSerializer
 )
+from translation.translator import retranslate_single_chapter
 
 
 api_logger = get_logger("api")
@@ -292,6 +293,50 @@ async def get_chapter_content(novel_id: str, chapter_number: int):
     
     except Exception as e:
         api_logger.error(f"Error fetching chapter content: {e}")
+        return BaseResponseSerializer(
+            success=False,
+            error=str(e),
+            ref_code=500
+        )
+
+
+@app.post("/novels/{novel_id}/chapters/{chapter_number}/retranslate", response_model=BaseResponseSerializer)
+async def retranslate_chapter(novel_id: str, chapter_number: int):
+    """
+    Trigger a re-translation for a specific chapter.
+    This overwrites the existing translation with a new one.
+    """
+    api_logger.info(f"Retranslate endpoint hit for novel {novel_id}, chapter {chapter_number}")
+    
+    try:
+        # Validate ObjectId
+        try:
+            ObjectId(novel_id)
+        except Exception:
+            return BaseResponseSerializer(
+                success=False,
+                error="Invalid novel ID format",
+                ref_code=400
+            )
+
+        # Trigger synchronous retranslation (blocking)
+        success, message = retranslate_single_chapter(novel_id, chapter_number)
+        
+        if success:
+            return BaseResponseSerializer(
+                success=True,
+                data={"message": message},
+                ref_code=200
+            )
+        else:
+            return BaseResponseSerializer(
+                success=False,
+                error=message,
+                ref_code=500
+            )
+
+    except Exception as e:
+        api_logger.error(f"Error triggering retranslation: {e}")
         return BaseResponseSerializer(
             success=False,
             error=str(e),

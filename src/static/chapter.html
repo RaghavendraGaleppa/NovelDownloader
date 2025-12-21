@@ -598,8 +598,19 @@
     </div>
     <div class="swipe-indicator right" id="swipeRight">
         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
         </svg>
+    </div>
+
+    <!-- Retranslate Loading Overlay -->
+    <div id="retranslateOverlay"
+        class="fixed inset-0 bg-black/80 z-[200] hidden flex flex-col items-center justify-center text-white">
+        <div class="loading-spinner w-12 h-12 rounded-full mb-4"></div>
+        <div class="text-xl font-bold mb-2">Retranslating Chapter...</div>
+        <div class="text-sm opacity-70 max-w-xs text-center">This may take a minute. Please do not close the page.</div>
+    </div>
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+    </svg>
     </div>
 
     <!-- Tap zones for mobile navigation -->
@@ -760,6 +771,18 @@
                     </div>
                     <div class="text-center text-xs mt-2 opacity-40">Dim screen for night reading</div>
                 </div>
+
+                <!-- Actions (Desktop) -->
+                <div class="mt-8 pt-6 border-t border-[var(--border-color)]">
+                    <button onclick="retranslateCurrentChapter()"
+                        class="w-full py-2 rounded-xl border border-[var(--accent-color)] text-[var(--accent-color)] hover:bg-[var(--accent-color)] hover:text-[var(--bg-color)] font-semibold transition-colors flex items-center justify-center gap-2 text-sm">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                        Re-translate Chapter
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -857,6 +880,20 @@
                     </svg>
                 </div>
                 <div class="text-center text-xs mt-2 opacity-40">Dim screen for night reading</div>
+            </div>
+
+            <!-- Actions -->
+            <div class="mt-6 pt-6 border-t border-[var(--border-color)]">
+                <label class="block text-sm font-semibold mb-3 opacity-70">Actions</label>
+                <button id="retranslateBtn" onclick="retranslateCurrentChapter()"
+                    class="w-full py-3 rounded-xl bg-[var(--accent-color)] text-[var(--bg-color)] font-bold shadow-lg active:opacity-90 transition-opacity flex items-center justify-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    Re-translate Chapter
+                </button>
+                <div class="text-center text-xs mt-2 opacity-60">Overwrites existing translation</div>
             </div>
         </div>
     </div>
@@ -1673,6 +1710,45 @@
 
         // Initialize
         loadChapter();
+
+        // Retranslate Logic
+        async function retranslateCurrentChapter() {
+            if (!confirm('Are you sure you want to re-translate this chapter? It will replace the current content.')) {
+                return;
+            }
+
+            const retranslateOverlay = document.getElementById('retranslateOverlay');
+            retranslateOverlay.classList.remove('hidden');
+
+            // Close settings if open
+            if (bottomSheet) closeBottomSheet();
+            if (settingsPanel) {
+                settingsPanel.style.opacity = '0';
+                settingsPanel.style.visibility = 'hidden';
+            }
+
+            try {
+                const response = await fetch(`/novels/${novelId}/chapters/${chapterNumber}/retranslate`, {
+                    method: 'POST'
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    // Slight delay to ensure file write completes
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1000);
+                } else {
+                    throw new Error(result.error || 'Retranslation failed');
+                }
+
+            } catch (error) {
+                console.error('Retranslate Error:', error);
+                alert(`Error: ${error.message}`);
+                retranslateOverlay.classList.add('hidden');
+            }
+        }
     </script>
 </body>
 

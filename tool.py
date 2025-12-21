@@ -407,7 +407,7 @@ def main():
         help='Number of parallel worker threads (default: 1).'
     )
     extract_parser.add_argument(
-        '--start-chapter',
+        '-sc', '--start-chapter',
         type=int,
         default=1,
         help='Chapter number to start processing from (optional).'
