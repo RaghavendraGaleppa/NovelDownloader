@@ -311,6 +311,7 @@ def translate_novel_by_id(novel_id: str, workers: int = 1, skip_validation: bool
 def retranslate_single_chapter(novel_id: str, chapter_number: int) -> tuple[bool, str]:
     """
     Retranslates a single chapter by ID and chapter number.
+    If source_url is available, re-scrapes the chapter first before translating.
     Returns (success, message).
     """
     if not TRANSLATION_AVAILABLE:
@@ -340,7 +341,27 @@ def retranslate_single_chapter(novel_id: str, chapter_number: int) -> tuple[bool
     if not raw_chapter:
         return False, f"Raw chapter {chapter_number} not found. Cannot retranslate."
 
-    # 3. Process (Retranslate)
+    # 3. Re-scrape if source_url is available
+    source_url = raw_chapter.get("source_url")
+    if source_url:
+        console.print(f"🔄 Re-scraping chapter {chapter_number} from: {source_url}", style="bold cyan")
+        try:
+            rescrape_success, rescrape_msg = _rescrape_chapter(raw_chapter, source_url, novel_folder_path, db)
+            if rescrape_success:
+                console.print(f"✅ Re-scrape successful: {rescrape_msg}", style="green")
+                # Refresh raw_chapter after re-scraping
+                raw_chapter = db.raw_chapters.find_one({
+                    "novel_id": novel_object_id,
+                    "chapter_number": chapter_number
+                })
+            else:
+                console.print(f"⚠️ Re-scrape failed: {rescrape_msg}. Proceeding with existing content.", style="yellow")
+        except Exception as e:
+            console.print(f"⚠️ Re-scrape error: {e}. Proceeding with existing content.", style="yellow")
+    else:
+        console.print(f"ℹ️ No source_url available for chapter {chapter_number}. Using existing content.", style="dim")
+
+    # 4. Process (Retranslate)
     try:
         console.print(f"🔄 Retranslating chapter {chapter_number} for novel {novel.get('novel_name')}", style="bold magenta")
         # Reuse the existing processing logic which handles updates/overwrites
@@ -348,6 +369,69 @@ def retranslate_single_chapter(novel_id: str, chapter_number: int) -> tuple[bool
         return True, "Retranslation successful"
     except Exception as e:
         console.print(f"❌ Retranslation failed: {e}", style="red")
+        return False, str(e)
+
+
+def _rescrape_chapter(raw_chapter: dict, source_url: str, novel_folder_path: str, db) -> tuple[bool, str]:
+    """
+    Re-scrapes a chapter from the source URL and updates the raw chapter file and database record.
+    
+    Args:
+        raw_chapter: The raw chapter document from the database
+        source_url: The URL to scrape the chapter from
+        novel_folder_path: The path to the novel folder
+        db: Database client
+        
+    Returns:
+        tuple: (success, message)
+    """
+    try:
+        # Import scraping utilities
+        try:
+            from src.scraping.parse_chapter import scrape_chapter, detect_extraction_backend
+        except ImportError:
+            from scraping.parse_chapter import scrape_chapter, detect_extraction_backend
+        
+        # Detect the appropriate backend based on the URL
+        backend = detect_extraction_backend(source_url)
+        backend_name = backend.__class__.__name__
+        console.print(f"  Using backend: {backend_name}", style="dim")
+        
+        # Scrape the chapter (use Selenium by default for better compatibility)
+        html_content = scrape_chapter(source_url, use_selenium=True)
+        
+        if not html_content:
+            return False, "Failed to fetch page content"
+        
+        # Extract content using the backend
+        title, paragraphs, next_url, ch_num = backend.extract_all_content(html_content, source_url)
+        
+        if not paragraphs:
+            return False, "No content extracted from page"
+        
+        # Combine content
+        combined_content = f"# {title}\n\n" + "\n\n".join(paragraphs)
+        
+        # Save to file
+        saved_at = raw_chapter.get("saved_at")
+        if saved_at:
+            with open(saved_at, 'w', encoding='utf-8') as f:
+                f.write(combined_content)
+            
+            # Update database record
+            db.raw_chapters.update_one(
+                {"_id": raw_chapter["_id"]},
+                {"$set": {
+                    "title": title,
+                    "updated_at": datetime.now()
+                }}
+            )
+            
+            return True, f"Updated {len(paragraphs)} paragraphs"
+        else:
+            return False, "No saved_at path in raw chapter record"
+            
+    except Exception as e:
         return False, str(e)
 
 

@@ -29,7 +29,7 @@ from src.scraping.parse_chapter import (
     detect_extraction_backend,
     _ensure_output_directory
 )
-from src.scraping.extraction_backends import EBNovel543
+from src.scraping.extraction_backends import EBNovel543, EB69Shuba
 from src.translation.translator import translate, perform_api_validation
 from bson import ObjectId
 
@@ -84,6 +84,73 @@ def parse_novel543_toc(html_content: str, base_url: str) -> List[dict]:
     return unique_chapters
 
 
+def parse_69shuba_toc(html_content: str, base_url: str) -> List[dict]:
+    """
+    Parse the 69shuba.com TOC page to extract all chapter URLs.
+    
+    Args:
+        html_content: HTML content of the TOC page
+        base_url: Base URL for resolving relative links
+        
+    Returns:
+        List of dicts with 'chapter_num', 'url', 'title' keys, sorted by chapter number
+    """
+    soup = BeautifulSoup(html_content, 'html.parser')
+    chapters = []
+    
+    # Find all chapter links - they're in <a> elements with chapter patterns
+    # Pattern: 第X章 Title (e.g., "第1章 衣不蔽体，与弟同袍")
+    chapter_pattern = re.compile(r'第(\d+)章')
+    
+    for link in soup.find_all('a', href=True):
+        text = link.get_text(strip=True)
+        match = chapter_pattern.search(text)
+        
+        if match:
+            chapter_num = int(match.group(1))
+            href = link.get('href')
+            
+            # Resolve relative URLs
+            full_url = urljoin(base_url, href)
+            
+            # Only include 69shuba.com chapter URLs (must contain /txt/)
+            if '69shuba.com' in full_url and '/txt/' in full_url:
+                chapters.append({
+                    'chapter_num': chapter_num,
+                    'url': full_url,
+                    'title': text
+                })
+    
+    # Sort by chapter number and remove duplicates
+    seen = set()
+    unique_chapters = []
+    for ch in sorted(chapters, key=lambda x: x['chapter_num']):
+        if ch['chapter_num'] not in seen:
+            seen.add(ch['chapter_num'])
+            unique_chapters.append(ch)
+    
+    return unique_chapters
+
+
+def detect_site_type(url: str) -> str:
+    """
+    Detect the site type from a URL.
+    
+    Args:
+        url: URL to analyze
+        
+    Returns:
+        Site type string: 'novel543', '69shuba', or 'unknown'
+    """
+    url_lower = url.lower()
+    if 'novel543.com' in url_lower:
+        return 'novel543'
+    elif '69shuba.com' in url_lower:
+        return '69shuba'
+    else:
+        return 'unknown'
+
+
 def is_same_chapter_continuation(current_url: str, next_url: str) -> bool:
     """
     Check if next_url is a continuation (next part) of the current chapter.
@@ -112,7 +179,8 @@ def is_same_chapter_continuation(current_url: str, next_url: str) -> bool:
 
 def scrape_complete_chapter(
     starting_url: str,
-    use_selenium: bool = False
+    use_selenium: bool = False,
+    site_type: str = 'novel543'
 ) -> Tuple[str, str, Optional[str]]:
     """
     Scrape a complete chapter including all parts.
@@ -120,6 +188,7 @@ def scrape_complete_chapter(
     Args:
         starting_url: URL of the first part of the chapter
         use_selenium: Whether to use Selenium instead of CloudScraper
+        site_type: The type of site ('novel543' or '69shuba')
         
     Returns:
         Tuple of (chapter_title, combined_content, next_chapter_url)
@@ -127,7 +196,12 @@ def scrape_complete_chapter(
         - combined_content: All parts combined with separators
         - next_chapter_url: URL of the next chapter (or None if no next chapter)
     """
-    backend = EBNovel543()
+    # Select the appropriate backend based on site type
+    if site_type == '69shuba':
+        backend = EB69Shuba()
+    else:
+        backend = EBNovel543()
+    
     all_paragraphs = []
     chapter_title = ""
     chapter_number = None
@@ -161,7 +235,13 @@ def scrape_complete_chapter(
                 all_paragraphs.append("---")
             all_paragraphs.extend(paragraphs)
         
-        # Check if next URL exists and is a continuation
+        # For 69shuba, chapters don't have multiple parts like novel543
+        # So we can break after the first successful scrape
+        if site_type == '69shuba':
+            next_chapter_url = next_url
+            break
+        
+        # Check if next URL exists and is a continuation (for novel543)
         if next_url:
             if is_same_chapter_continuation(current_url, next_url):
                 # Continue to next part
@@ -193,7 +273,8 @@ def extract_single_chapter(
     db,
     novel_id: ObjectId,
     use_selenium: bool = False,
-    skip_existing: bool = True
+    skip_existing: bool = True,
+    site_type: str = 'novel543'
 ) -> bool:
     """
     Extract (scrape + translate) a single chapter.
@@ -205,6 +286,7 @@ def extract_single_chapter(
         novel_id: MongoDB ObjectId for the novel
         use_selenium: Use Selenium for scraping
         skip_existing: Skip if already translated
+        site_type: The type of site ('novel543' or '69shuba')
         
     Returns:
         True if successful, False otherwise
@@ -229,7 +311,7 @@ def extract_single_chapter(
     try:
         # 1. SCRAPE - Get complete chapter including all parts
         start_time = time.time()
-        chapter_title, raw_content, _ = scrape_complete_chapter(chapter_url, use_selenium)
+        chapter_title, raw_content, _ = scrape_complete_chapter(chapter_url, use_selenium, site_type=site_type)
         scrape_time = time.time() - start_time
         
         if not raw_content or raw_content.startswith("# No"):
@@ -254,6 +336,7 @@ def extract_single_chapter(
             'chapter_number': chapter_num,
             'title': chapter_title,
             'saved_at': raw_filepath,
+            'source_url': chapter_url,  # Store source URL for re-scraping
             'updated_at': datetime.now()
         }
         
@@ -363,26 +446,49 @@ def _update_novel_stats(db, novel_id: ObjectId):
     )
 
 
-def fetch_toc(toc_url: str, use_selenium: bool = False) -> List[dict]:
+def fetch_toc(toc_url: str, use_selenium: bool = False, site_type: Optional[str] = None) -> List[dict]:
     """
     Fetch and parse the TOC page.
     
     Args:
         toc_url: URL of the TOC page (or a chapter URL to derive TOC URL)
         use_selenium: Whether to use Selenium
+        site_type: The type of site ('novel543' or '69shuba'). If None, auto-detected.
         
     Returns:
         List of chapter info dicts
     """
-    # If this is a chapter URL, convert to TOC URL
-    if '/dir' not in toc_url:
-        # Extract novel ID and construct TOC URL
-        # Pattern: https://www.novel543.com/0624601529/8096_1.html
-        match = re.search(r'novel543\.com/(\d+)/', toc_url)
-        if match:
-            novel_id = match.group(1)
-            toc_url = f"https://www.novel543.com/{novel_id}/dir"
-            console.print(f"📋 Derived TOC URL: {toc_url}", style="cyan")
+    # Auto-detect site type if not provided
+    if site_type is None:
+        site_type = detect_site_type(toc_url)
+    
+    # Convert chapter URL to TOC URL based on site type
+    if site_type == 'novel543':
+        if '/dir' not in toc_url:
+            # Extract novel ID and construct TOC URL
+            # Pattern: https://www.novel543.com/0624601529/8096_1.html
+            match = re.search(r'novel543\.com/(\d+)/', toc_url)
+            if match:
+                novel_id = match.group(1)
+                toc_url = f"https://www.novel543.com/{novel_id}/dir"
+                console.print(f"📋 Derived TOC URL: {toc_url}", style="cyan")
+    elif site_type == '69shuba':
+        # Convert chapter URL to TOC URL
+        # Chapter: https://www.69shuba.com/txt/90336/40672586
+        # TOC: https://www.69shuba.com/book/90336/
+        if '/txt/' in toc_url:
+            match = re.search(r'69shuba\.com/txt/(\d+)/', toc_url)
+            if match:
+                novel_id = match.group(1)
+                toc_url = f"https://www.69shuba.com/book/{novel_id}/"
+                console.print(f"📋 Derived TOC URL: {toc_url}", style="cyan")
+        elif '/book/' in toc_url and not toc_url.endswith('/'):
+            # Handle /book/90336.htm -> /book/90336/
+            match = re.search(r'69shuba\.com/book/(\d+)', toc_url)
+            if match:
+                novel_id = match.group(1)
+                toc_url = f"https://www.69shuba.com/book/{novel_id}/"
+                console.print(f"📋 Derived TOC URL: {toc_url}", style="cyan")
     
     console.print(f"📥 Fetching Table of Contents from: {toc_url}", style="bold cyan")
     
@@ -392,7 +498,12 @@ def fetch_toc(toc_url: str, use_selenium: bool = False) -> List[dict]:
         console.print("❌ Failed to fetch TOC page", style="red")
         return []
     
-    chapters = parse_novel543_toc(html_content, toc_url)
+    # Parse TOC based on site type
+    if site_type == '69shuba':
+        chapters = parse_69shuba_toc(html_content, toc_url)
+    else:
+        chapters = parse_novel543_toc(html_content, toc_url)
+    
     console.print(f"✅ Found {len(chapters)} chapters in TOC", style="green")
     
     return chapters
@@ -419,10 +530,14 @@ def run_extraction(args: argparse.Namespace):
     
     scraper_type = "CloudScraper" if use_cloudscraper else "Selenium"
     
+    # Detect site type from URL
+    site_type = detect_site_type(start_url) if start_url else 'unknown'
+    site_display = site_type if site_type != 'unknown' else 'auto-detect'
+    
     console.print(f"\n{'='*60}", style="bold magenta")
     console.print(f"🚀 Starting Extraction for: {novel_title}", style="bold magenta")
     console.print(f"   Workers: {workers}, Max Chapters: {max_chapters}, Start Chapter: {start_chapter}", style="magenta")
-    console.print(f"   Scraper: {scraper_type}", style="magenta")
+    console.print(f"   Scraper: {scraper_type}, Site: {site_display}", style="magenta")
     console.print(f"{'='*60}\n", style="bold magenta")
     
     # Validate API before starting (unless skipped)
@@ -483,7 +598,15 @@ def run_extraction(args: argparse.Namespace):
         console.print("❌ No start URL available. Please provide --start-url.", style="red")
         return
     
-    chapters = fetch_toc(start_url, use_selenium=use_selenium)
+    # Detect site type if not already detected
+    if site_type == 'unknown':
+        site_type = detect_site_type(start_url)
+        if site_type == 'unknown':
+            console.print("❌ Could not detect site type from URL. Supported sites: novel543.com, 69shuba.com", style="red")
+            return
+        console.print(f"🔍 Detected site type: {site_type}", style="cyan")
+    
+    chapters = fetch_toc(start_url, use_selenium=use_selenium, site_type=site_type)
     
     if not chapters:
         console.print("❌ No chapters found in TOC.", style="red")
@@ -505,7 +628,7 @@ def run_extraction(args: argparse.Namespace):
         success_count = 0
         for chapter_info in chapters_to_process:
             result = extract_single_chapter(
-                chapter_info, absolute_path, db, novel_id, use_selenium
+                chapter_info, absolute_path, db, novel_id, use_selenium, site_type=site_type
             )
             if result:
                 success_count += 1
@@ -524,7 +647,7 @@ def run_extraction(args: argparse.Namespace):
             for chapter_info in chapters_to_process:
                 future = executor.submit(
                     extract_single_chapter,
-                    chapter_info, absolute_path, db, novel_id, use_selenium
+                    chapter_info, absolute_path, db, novel_id, use_selenium, site_type=site_type
                 )
                 futures[future] = chapter_info['chapter_num']
             

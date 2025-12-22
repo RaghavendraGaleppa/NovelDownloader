@@ -8,7 +8,7 @@ import json
 import random
 import argparse
 import urllib3
-from src.scraping.extraction_backends import ExtractionBackend, EB69Shu, EB1QXS, EBNovel543
+from src.scraping.extraction_backends import ExtractionBackend, EB69Shu, EB1QXS, EBNovel543, EB69Shuba
 from urllib.parse import urlparse
 from typing import Optional
 from datetime import datetime
@@ -284,8 +284,12 @@ def detect_extraction_backend(url: str) -> ExtractionBackend:
     if 'novel543' in domain:
         return EBNovel543()
     
+    # Check for 69shuba domains (must check before 69shu since 69shuba contains "69shu")
+    if '69shuba' in domain:
+        return EB69Shuba()
+    
     # Check for 69shu domains
-    if '69shu' in domain or 'shu69' in domain or '69shuba' in domain:
+    if '69shu' in domain or 'shu69' in domain:
         return EB69Shu()
     
     # Default to 69shu backend for now
@@ -426,7 +430,8 @@ def _upsert_raw_chapter_record(
     progress_id: ObjectId,
     chapter_number: int,
     title: str,
-    saved_at: str
+    saved_at: str,
+    source_url: Optional[str] = None
 ):
     """Creates or updates a record for the scraped chapter in 'raw_chapters' collection."""
     raw_chapters_collection = db_client["raw_chapters"]
@@ -436,17 +441,23 @@ def _upsert_raw_chapter_record(
         'chapter_number': chapter_number
     }
     
+    set_on_insert = {
+        'novel_id': novel_id,
+        'progress_id': progress_id,
+        'chapter_number': chapter_number,
+        'title': title,
+        'saved_at': saved_at,
+        'created_at': datetime.now()
+    }
+    
+    # Add source_url if provided
+    if source_url:
+        set_on_insert['source_url'] = source_url
+    
     update_payload = {
         '$inc': {'n_parts': 1},
         '$set': { 'updated_at': datetime.now() },
-        '$setOnInsert': {
-            'novel_id': novel_id,
-            'progress_id': progress_id,
-            'chapter_number': chapter_number,
-            'title': title,
-            'saved_at': saved_at,
-            'created_at': datetime.now()
-        }
+        '$setOnInsert': set_on_insert
     }
     
     # #region agent log
@@ -879,7 +890,8 @@ def main(args: argparse.Namespace):
                         progress_id=progress_id,
                         chapter_number=last_known_chapter_num,
                         title=title,
-                        saved_at=filepath
+                        saved_at=filepath,
+                        source_url=current_url  # Store source URL for re-scraping
                     )
                     _update_novel_raw_chapters_available(
                         novel_id=novel_id

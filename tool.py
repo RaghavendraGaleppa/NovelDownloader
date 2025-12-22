@@ -387,8 +387,8 @@ def main():
     # ===== EXTRACT SUBCOMMAND =====
     extract_parser = subparsers.add_parser(
         'extract',
-        help='Extract and translate chapters from Novel543.com in one synchronized process',
-        description='Scrape chapters completely (including all parts) and translate immediately.\nThis ensures multi-part chapters are fully scraped before translation begins.',
+        help='Extract and translate chapters from Novel543.com or 69shuba.com in one synchronized process',
+        description='Scrape chapters completely (including all parts) and translate immediately.\nThis ensures multi-part chapters are fully scraped before translation begins.\n\nSupported sites:\n  - Novel543.com (https://www.novel543.com/...)\n  - 69shuba.com (https://www.69shuba.com/...)',
         formatter_class=argparse.RawTextHelpFormatter
     )
     extract_parser.add_argument(
@@ -511,8 +511,10 @@ def main():
         print('python tool.py translate -n "My Novel" -w 2 -m 20  # Translate 20 chapters')
         print('python tool.py convert -f "./Novels/My_Novel/My_Novel-English" -o "my_novel.epub" -t "My Novel" -a "Author"')
         print()
-        print("# Extract (scrape + translate in one step) - Novel543.com only (uses Selenium by default):")
+        print("# Extract (scrape + translate in one step) - Supports Novel543.com and 69shuba.com (uses Selenium by default):")
         print('python tool.py extract -n "My Novel" -s "https://www.novel543.com/123456/dir" -m 10')
+        print('python tool.py extract -n "My Novel" -s "https://www.69shuba.com/txt/90336/40672586" -m 10  # 69shuba.com')
+        print('python tool.py extract -n "My Novel" -s "https://www.69shuba.com/book/90336/" -m 10  # 69shuba.com TOC')
         print('python tool.py extract -n "My Novel" -s "https://www.novel543.com/123456/dir" -m 10 --use-cloudscraper  # Use older method')
         print('python tool.py extract -n "My Novel" -s "https://www.novel543.com/123456/dir" -m 10 -sv  # Skip API validation')
         return

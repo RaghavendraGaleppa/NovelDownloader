@@ -417,6 +417,195 @@ class EB1QXS(ExtractionBackend):
         return page_title, final_paragraphs
 
 
+class EB69Shuba(ExtractionBackend):
+    """
+    Extraction backend for 69shuba.com website.
+    This is different from EB69Shu (for 69shu.com) - 69shuba has a different HTML structure.
+    
+    URL patterns:
+    - Chapter: /txt/{novel_id}/{chapter_id} (e.g., /txt/90336/40672586)
+    - TOC: /book/{novel_id}/ (e.g., /book/90336/)
+    - Book info: /book/{novel_id}.htm
+    """
+    
+    def get_next_chapter_url(self, html_content: str, current_url: Optional[str] = None) -> Optional[str]:
+        """
+        Extracts the URL for the next chapter from 69shuba HTML content.
+        
+        Args:
+            html_content (str): The HTML content of the novel chapter page
+            current_url (str, optional): The current page URL for resolving relative URLs
+            
+        Returns:
+            str or None: The URL of the next chapter, or None if not found
+        """
+        soup = BeautifulSoup(html_content, 'html.parser')
+
+        # Find the navigation link with text "下一章" (Next Chapter)
+        next_chapter_link = soup.find('a', string="下一章")
+        
+        if next_chapter_link and isinstance(next_chapter_link, Tag) and next_chapter_link.get('href'):
+            href = next_chapter_link.get('href')
+            
+            # Check if this links to book info page (no next chapter)
+            if href and '.htm' in str(href) and '/txt/' not in str(href):
+                return None
+            
+            # Convert relative URLs to absolute URLs if current_url is provided
+            if current_url and href:
+                return urljoin(current_url, str(href))
+            return str(href) if href else None
+        
+        return None
+
+    def get_chapter_number(self, html_content: str, current_url: Optional[str] = None) -> Optional[str]:
+        """
+        Extracts the chapter number from 69shuba HTML content.
+        
+        Args:
+            html_content (str): The HTML content of the novel chapter page
+            current_url (str, optional): The current page URL for URL-based extraction fallback
+            
+        Returns:
+            str or None: The chapter number as a string, or None if not found
+        """
+        soup = BeautifulSoup(html_content, 'html.parser')
+        chapter_number = None
+
+        # Try to find chapter number in <h1> tag
+        # Format: "第1章 衣不蔽体，与弟同袍"
+        h1_tag = soup.find('h1')
+        if h1_tag and isinstance(h1_tag, Tag):
+            h1_text = h1_tag.get_text(strip=True)
+            # Pattern for "第X章"
+            match = re.search(r'第(\d+)章', h1_text)
+            if match:
+                chapter_number = match.group(1)
+
+        # If not found in <h1>, try to find in <title> tag
+        if not chapter_number and soup.title and soup.title.string:
+            match = re.search(r'第(\d+)章', str(soup.title.string))
+            if match:
+                chapter_number = match.group(1)
+                
+        # Fallback: try other common chapter patterns
+        if not chapter_number:
+            if h1_tag and isinstance(h1_tag, Tag):
+                h1_text = h1_tag.get_text(strip=True)
+                # Try patterns like "Chapter X", "第X话", etc.
+                match = re.search(r'第\s*(\d+)\s*章|第\s*(\d+)\s*话|Chapter\s*(\d+)', h1_text, re.IGNORECASE)
+                if match:
+                    chapter_number = next((g for g in match.groups() if g is not None), None)
+
+            if not chapter_number and soup.title and soup.title.string:
+                match = re.search(r'第\s*(\d+)\s*章|第\s*(\d+)\s*话|Chapter\s*(\d+)', str(soup.title.string), re.IGNORECASE)
+                if match:
+                    chapter_number = next((g for g in match.groups() if g is not None), None)
+        
+        # URL-based fallback extraction if HTML parsing failed
+        if not chapter_number and current_url:
+            chapter_number = self._extract_chapter_from_url(current_url)
+                    
+        return chapter_number
+    
+    def _extract_chapter_from_url(self, url: str) -> Optional[str]:
+        """
+        Extract chapter number from URL as fallback.
+        Note: 69shuba URLs don't contain chapter numbers directly (/txt/90336/40672586)
+        so we rely on HTML parsing primarily.
+        """
+        # General fallback patterns
+        patterns = [
+            r'/(?:chapter|chap|ch)[-_]?(\d+)',  # /chapter-123, /chap123, /ch_123
+            r'chapter=(\d+)',                  # ?chapter=123
+            r'ch=(\d+)',                       # ?ch=123
+        ]
+        
+        for pattern in patterns:
+            match = re.search(pattern, url, re.IGNORECASE)
+            if match:
+                return match.group(1)
+        
+        return None
+
+    def extract_novel_content(self, html_content: str) -> Tuple[str, List[str]]:
+        """
+        Extracts the title and novel text paragraphs from 69shuba HTML content.
+        
+        Args:
+            html_content (str): The HTML content of the novel chapter page
+            
+        Returns:
+            tuple: A tuple containing (title, paragraphs_list)
+        """
+        soup = BeautifulSoup(html_content, 'html.parser')
+
+        # Extract the title from the <h1> tag (more reliable than <title>)
+        page_title = "No Title Found"
+        h1_tag = soup.find('h1')
+        if h1_tag and isinstance(h1_tag, Tag):
+            page_title = h1_tag.get_text(strip=True)
+        elif soup.title and soup.title.string:
+            # Fallback to <title> tag, but clean it up
+            title_text = soup.title.string.strip()
+            # Remove site name suffix like "-69书吧"
+            if '-' in title_text:
+                page_title = title_text.rsplit('-', 1)[0].strip()
+            else:
+                page_title = title_text
+
+        final_paragraphs = []
+        
+        # Find the content container - on 69shuba, content is typically in a div after h1
+        # The structure has text nodes directly in a container div
+        content_container = None
+        
+        if h1_tag:
+            # Try to find the parent container that holds both h1 and content
+            parent = h1_tag.find_parent()
+            if parent:
+                content_container = parent
+        
+        if content_container and isinstance(content_container, Tag):
+            # Get all text content, excluding navigation and ads
+            # We need to iterate through the children and extract text
+            skip_texts = [
+                '上一章', '下一章', '书签', '目录', '小贴士',
+                '按左右键', '按回车键', '69书吧', 'Copyright',
+                '(本章完)', '（本章完）'
+            ]
+            
+            # Get all strings from the content container
+            for element in content_container.stripped_strings:
+                text = element.strip()
+                
+                # Skip empty text
+                if not text:
+                    continue
+                    
+                # Skip navigation and footer text
+                should_skip = False
+                for skip in skip_texts:
+                    if skip in text:
+                        should_skip = True
+                        break
+                
+                if should_skip:
+                    continue
+                
+                # Skip the title itself (already captured)
+                if text == page_title:
+                    continue
+                
+                # Skip very short text that's likely navigation
+                if len(text) < 3 and not any(c.isalpha() for c in text):
+                    continue
+                
+                final_paragraphs.append(text)
+
+        return page_title, final_paragraphs
+
+
 class EBNovel543(ExtractionBackend):
     """
     Extraction backend for novel543.com website.
