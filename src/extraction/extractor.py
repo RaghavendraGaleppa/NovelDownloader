@@ -521,6 +521,7 @@ def run_extraction(args: argparse.Namespace):
     workers = args.workers
     max_chapters = args.max_chapters
     start_chapter = getattr(args, 'start_chapter', 1)
+    retry_from_chapter = getattr(args, 'retry_from_chapter', None)
     
     # Selenium is default, use CloudScraper only if explicitly requested
     use_cloudscraper = getattr(args, 'use_cloudscraper', False)
@@ -534,9 +535,14 @@ def run_extraction(args: argparse.Namespace):
     site_type = detect_site_type(start_url) if start_url else 'unknown'
     site_display = site_type if site_type != 'unknown' else 'auto-detect'
     
+    # If retry_from_chapter is set, use it as the effective start chapter
+    effective_start_chapter = retry_from_chapter if retry_from_chapter else start_chapter
+    
     console.print(f"\n{'='*60}", style="bold magenta")
     console.print(f"🚀 Starting Extraction for: {novel_title}", style="bold magenta")
-    console.print(f"   Workers: {workers}, Max Chapters: {max_chapters}, Start Chapter: {start_chapter}", style="magenta")
+    console.print(f"   Workers: {workers}, Max Chapters: {max_chapters}, Start Chapter: {effective_start_chapter}", style="magenta")
+    if retry_from_chapter:
+        console.print(f"   ⚠️  RETRY MODE: Re-scraping and re-translating from chapter {retry_from_chapter}", style="yellow bold")
     console.print(f"   Scraper: {scraper_type}, Site: {site_display}", style="magenta")
     console.print(f"{'='*60}\n", style="bold magenta")
     
@@ -612,15 +618,18 @@ def run_extraction(args: argparse.Namespace):
         console.print("❌ No chapters found in TOC.", style="red")
         return
 
-    # Filter chapters based on start_chapter
-    if start_chapter > 1:
-        console.print(f"🔍 Filtering chapters starting from {start_chapter}...", style="cyan")
-        chapters = [c for c in chapters if c['chapter_num'] >= start_chapter]
+    # Filter chapters based on effective_start_chapter (either start_chapter or retry_from_chapter)
+    if effective_start_chapter > 1:
+        console.print(f"🔍 Filtering chapters starting from {effective_start_chapter}...", style="cyan")
+        chapters = [c for c in chapters if c['chapter_num'] >= effective_start_chapter]
         console.print(f"   Remaining chapters to process: {len(chapters)}")
     
     # Limit to max_chapters
     chapters_to_process = chapters[:max_chapters]
     console.print(f"\n📖 Processing {len(chapters_to_process)} chapters (out of {len(chapters)} total)\n", style="bold cyan")
+    
+    # Determine if we should force re-scrape (skip existing check)
+    force_rescrape = retry_from_chapter is not None
     
     # Process chapters
     if workers == 1:
@@ -628,7 +637,8 @@ def run_extraction(args: argparse.Namespace):
         success_count = 0
         for chapter_info in chapters_to_process:
             result = extract_single_chapter(
-                chapter_info, absolute_path, db, novel_id, use_selenium, site_type=site_type
+                chapter_info, absolute_path, db, novel_id, use_selenium, 
+                skip_existing=not force_rescrape, site_type=site_type
             )
             if result:
                 success_count += 1
@@ -647,7 +657,8 @@ def run_extraction(args: argparse.Namespace):
             for chapter_info in chapters_to_process:
                 future = executor.submit(
                     extract_single_chapter,
-                    chapter_info, absolute_path, db, novel_id, use_selenium, site_type=site_type
+                    chapter_info, absolute_path, db, novel_id, use_selenium, 
+                    skip_existing=not force_rescrape, site_type=site_type
                 )
                 futures[future] = chapter_info['chapter_num']
             

@@ -29,6 +29,7 @@ from src.conversion.epub_converter import convert_folder_md_to_epub
 from src.extraction.extractor import run_extraction
 from src.evaluation.runner import run_evaluation
 from src.evaluation.report import save_report, print_summary
+from src.scraping.novel_sync import fetch_all_novels_from_source, sync_novel_metadata
 from src.main import db_client
 
 
@@ -227,6 +228,316 @@ def cmd_list(args):
         console.print(f"❌ Error fetching novels from database: {e}", style="red")
 
 
+def cmd_fetch_all_novels(args):
+    """Handle the fetch-all-novels subcommand"""
+    print(f"🔍 Fetching all novels from {args.source}...")
+    
+    try:
+        count = fetch_all_novels_from_source(
+            source=args.source,
+            max_pages=args.max_pages
+        )
+        print(f"\n✅ Successfully fetched {count} novels from {args.source}")
+    except ValueError as e:
+        print(f"\n❌ Error: {e}")
+        sys.exit(1)
+    except Exception as e:
+        print(f"\n❌ Unexpected error: {e}")
+        sys.exit(1)
+
+
+def cmd_sync_novel(args):
+    """Handle the sync-novel subcommand"""
+    
+    # Handle --all flag for batch syncing
+    if args.all:
+        print(f"🔄 Syncing all fetched novels alphabetically...")
+        
+        novels_collection = db_client["novels"]
+        sources_collection = db_client["novel_sources"]
+        
+        # Get all novels that have sources (i.e., fetched novels)
+        novel_ids_with_sources = sources_collection.distinct('novel_id')
+        
+        if not novel_ids_with_sources:
+            print("📚 No fetched novels found. Run 'fetch-all-novels' first.")
+            return
+        
+        # Get novels sorted alphabetically
+        novels = list(novels_collection.find(
+            {'_id': {'$in': novel_ids_with_sources}},
+            {'_id': 1, 'novel_name': 1}
+        ).sort('novel_name', 1))
+        
+        total = len(novels)
+        print(f"Found {total} novels to sync\n")
+        
+        success_count = 0
+        failed_count = 0
+        
+        for i, novel in enumerate(novels, 1):
+            novel_id = str(novel['_id'])
+            novel_name = novel['novel_name']
+            
+            print(f"[{i}/{total}] Syncing: {novel_name}")
+            
+            try:
+                success, message = sync_novel_metadata(
+                    novel_id=novel_id,
+                    source=args.source
+                )
+                
+                if success:
+                    success_count += 1
+                    print(f"  ✅ {message}")
+                else:
+                    failed_count += 1
+                    print(f"  ❌ {message}")
+            except Exception as e:
+                failed_count += 1
+                print(f"  ❌ Error: {e}")
+            
+            # Add delay between novels to avoid rate limiting
+            if i < total:
+                import time
+                time.sleep(2)
+                print()
+        
+        print(f"\n{'='*60}")
+        print(f"Batch sync complete: {success_count} succeeded, {failed_count} failed")
+        print(f"{'='*60}")
+        return
+    
+    # Single novel sync
+    print(f"🔄 Syncing novel metadata...")
+    
+    try:
+        success, message = sync_novel_metadata(
+            novel_id=args.novel_id,
+            novel_title=args.novel_title,
+            source=args.source
+        )
+        
+        if success:
+            print(f"\n✅ {message}")
+        else:
+            print(f"\n❌ {message}")
+            sys.exit(1)
+    except Exception as e:
+        print(f"\n❌ Unexpected error: {e}")
+        sys.exit(1)
+
+
+def cmd_novel_info(args):
+    """Handle the novel info subcommand"""
+    from rich.console import Console
+    from rich.panel import Panel
+    from rich.text import Text
+    
+    console = Console()
+    novels_collection = db_client["novels"]
+    sources_collection = db_client["novel_sources"]
+    
+    # Find the novel
+    if args.novel_id:
+        try:
+            from bson.objectid import ObjectId
+            novel_object_id = ObjectId(args.novel_id)
+            novel = novels_collection.find_one({'_id': novel_object_id})
+        except Exception as e:
+            console.print(f"❌ Invalid novel ID: {e}", style="red")
+            sys.exit(1)
+    elif args.novel_title:
+        novel = novels_collection.find_one({'novel_name': args.novel_title})
+    else:
+        console.print("❌ Either --novel-id or --novel-title is required", style="red")
+        sys.exit(1)
+    
+    if not novel:
+        console.print(f"❌ Novel not found: {args.novel_id or args.novel_title}", style="red")
+        sys.exit(1)
+    
+    # Get source information
+    sources = list(sources_collection.find({'novel_id': novel['_id']}))
+    
+    # Build the info display
+    console.print()
+    console.print("="*70, style="cyan")
+    console.print(f"📖 Novel Information", style="bold cyan", justify="center")
+    console.print("="*70, style="cyan")
+    console.print()
+    
+    # Title
+    console.print(f"[bold]Title:[/bold] {novel.get('novel_name', 'Unknown')}")
+    
+    # Author
+    if novel.get('author'):
+        console.print(f"[bold]Author:[/bold] {novel['author']}")
+    
+    # Status
+    if novel.get('status'):
+        status = novel['status']
+        status_emoji = '📖' if status == 'ongoing' else '✅' if status == 'completed' else '❓'
+        console.print(f"[bold]Status:[/bold] {status_emoji} {status.capitalize()}")
+    
+    # Word Count
+    if novel.get('word_count'):
+        console.print(f"[bold]Word Count:[/bold] {novel['word_count']}")
+    
+    # Chapters
+    total_chapters = novel.get('total_chapters', 0)
+    raw_chapters = novel.get('raw_chapters_available', 0)
+    translated_chapters = novel.get('translated_chapters_available', 0)
+    
+    console.print(f"[bold]Total Chapters:[/bold] {total_chapters}")
+    console.print(f"[bold]Scraped Chapters:[/bold] {raw_chapters}")
+    console.print(f"[bold]Translated Chapters:[/bold] {translated_chapters}")
+    
+    # Tags
+    if novel.get('tags'):
+        tags_str = ', '.join(novel['tags'])
+        console.print(f"[bold]Tags:[/bold] {tags_str}")
+    
+    # Description
+    if novel.get('description'):
+        console.print()
+        console.print("[bold]Description:[/bold]")
+        console.print(Panel(novel['description'], border_style="dim"))
+    
+    # Thumbnail
+    if novel.get('thumbnail_url'):
+        console.print(f"[bold]Cover Image:[/bold] {novel['thumbnail_url']}")
+    
+    # Sources
+    if sources:
+        console.print()
+        console.print("[bold]Sources:[/bold]")
+        for source in sources:
+            console.print(f"  • {source['source_website']}: {source['source_url']}")
+    
+    # Timestamps
+    console.print()
+    if novel.get('added_datetime'):
+        added = novel['added_datetime'].strftime('%Y-%m-%d %H:%M')
+        console.print(f"[dim]Added: {added}[/dim]")
+    
+    if novel.get('last_synced'):
+        synced = novel['last_synced'].strftime('%Y-%m-%d %H:%M')
+        console.print(f"[dim]Last Synced: {synced}[/dim]")
+    
+    console.print()
+    console.print("="*70, style="cyan")
+    console.print()
+
+
+def cmd_novel_list(args):
+    """Handle the novel list subcommand"""
+    novels_collection = db_client["novels"]
+    sources_collection = db_client["novel_sources"]
+    
+    # Count novels that have sources (i.e., fetched novels)
+    novel_ids_with_sources = sources_collection.distinct('novel_id')
+    total_count = len(novel_ids_with_sources)
+    
+    if args.count:
+        print(f"📊 Total fetched novels: {total_count}")
+        return
+    
+    if total_count == 0:
+        print("📚 No fetched novels found. Run 'fetch-all-novels' first.")
+        return
+    
+    print(f"\n📚 Fetched Novels (Total: {total_count})")
+    print("=" * 60)
+    
+    page_size = 10
+    offset = 0
+    
+    while offset < total_count:
+        # Get current page of novels
+        page_novel_ids = novel_ids_with_sources[offset:offset + page_size]
+        novels = list(novels_collection.find(
+            {'_id': {'$in': page_novel_ids}},
+            {'novel_name': 1, 'added_datetime': 1}
+        ).sort('novel_name', 1))
+        
+        # Display novels
+        for i, novel in enumerate(novels, start=offset + 1):
+            added_date = novel.get('added_datetime', 'Unknown')
+            if hasattr(added_date, 'strftime'):
+                added_date = added_date.strftime('%Y-%m-%d')
+            print(f"{i:3d}. {novel['novel_name']} (added: {added_date})")
+        
+        offset += page_size
+        
+        # Check if there are more pages
+        if offset < total_count:
+            print(f"\n--- Showing {min(offset, total_count)} of {total_count} ---")
+            response = input("Press Enter for next page, or 'q' to quit: ").strip().lower()
+            if response == 'q':
+                break
+            print()
+    
+    print("=" * 60)
+
+
+def cmd_novel_synced(args):
+    """Handle the novel synced subcommand"""
+    novels_collection = db_client["novels"]
+    
+    # Count novels that have been synced (have last_synced field)
+    total_count = novels_collection.count_documents({'last_synced': {'$exists': True}})
+    
+    if args.count:
+        print(f"📊 Total synced novels: {total_count}")
+        return
+    
+    if total_count == 0:
+        print("📚 No synced novels found. Run 'sync-novel' on some novels first.")
+        return
+    
+    print(f"\n📚 Synced Novels (Total: {total_count})")
+    print("=" * 60)
+    
+    page_size = 10
+    offset = 0
+    
+    while offset < total_count:
+        # Get current page of synced novels
+        novels = list(novels_collection.find(
+            {'last_synced': {'$exists': True}},
+            {'novel_name': 1, 'author': 1, 'status': 1, 'total_chapters': 1, 'last_synced': 1}
+        ).sort('last_synced', -1).skip(offset).limit(page_size))
+        
+        # Display novels
+        for i, novel in enumerate(novels, start=offset + 1):
+            name = novel.get('novel_name', 'Unknown')
+            author = novel.get('author', 'Unknown')
+            status = novel.get('status', 'unknown')
+            chapters = novel.get('total_chapters', 0)
+            last_synced = novel.get('last_synced', 'Unknown')
+            
+            if hasattr(last_synced, 'strftime'):
+                last_synced = last_synced.strftime('%Y-%m-%d %H:%M')
+            
+            status_emoji = '📖' if status == 'ongoing' else '✅' if status == 'completed' else '❓'
+            print(f"{i:3d}. {name}")
+            print(f"     Author: {author} | Status: {status_emoji} {status} | Chapters: {chapters}")
+            print(f"     Last synced: {last_synced}")
+        
+        offset += page_size
+        
+        # Check if there are more pages
+        if offset < total_count:
+            print(f"\n--- Showing {min(offset, total_count)} of {total_count} ---")
+            response = input("Press Enter for next page, or 'q' to quit: ").strip().lower()
+            if response == 'q':
+                break
+            print()
+    
+    print("=" * 60)
+
+
 def main():
     """Main entry point for the unified tool"""
     parser = argparse.ArgumentParser(
@@ -238,7 +549,7 @@ def main():
     subparsers = parser.add_subparsers(
         dest='command',
         help='Available commands',
-        metavar='{scrape,translate,convert,validate,info,extract}'
+        metavar='{scrape,translate,convert,validate,info,extract,list,fetch-all-novels,sync-novel,novel}'
     )
     
     # ===== SCRAPE SUBCOMMAND =====
@@ -433,6 +744,11 @@ def main():
         default=False,
         help="Skip API validation before starting extraction."
     )
+    extract_parser.add_argument(
+        '-r', '--retry-from-chapter',
+        type=int,
+        help='Force re-scraping and re-translating from a specific chapter number. Overwrites existing data for chapters >= this number.'
+    )
     extract_parser.set_defaults(func=cmd_extract)
     
     # ===== EVALUATE SUBCOMMAND =====
@@ -468,6 +784,106 @@ def main():
         help='Skip BERTScore pre-check (faster but less info).'
     )
     evaluate_parser.set_defaults(func=cmd_evaluate)
+    
+    # ===== FETCH-ALL-NOVELS SUBCOMMAND =====
+    fetch_all_parser = subparsers.add_parser(
+        'fetch-all-novels',
+        help='Fetch all novels from a website',
+        description='Fetch list of all novels from a supported website and store in database.\\nThis is a lightweight operation that only stores titles and URLs.',
+        formatter_class=argparse.RawTextHelpFormatter
+    )
+    fetch_all_parser.add_argument(
+        '-s', '--source',
+        required=True,
+        help='Website identifier (currently only "69shuba" is supported)'
+    )
+    fetch_all_parser.add_argument(
+        '-m', '--max-pages',
+        type=int,
+        help='Optional limit on number of pages to scrape (for testing)'
+    )
+    fetch_all_parser.set_defaults(func=cmd_fetch_all_novels)
+    
+    # ===== SYNC-NOVEL SUBCOMMAND =====
+    sync_novel_parser = subparsers.add_parser(
+        'sync-novel',
+        help='Sync metadata and chapter list for a specific novel',
+        description='Fetch detailed metadata (author, tags, description) and chapter list for a novel.\\nCan be used for initial sync or to check for new chapters.',
+        formatter_class=argparse.RawTextHelpFormatter
+    )
+    sync_novel_parser.add_argument(
+        '-i', '--novel-id',
+        help='Novel ID (either this or --novel-title required)'
+    )
+    sync_novel_parser.add_argument(
+        '-n', '--novel-title',
+        help='Novel title (either this or --novel-id required)'
+    )
+    sync_novel_parser.add_argument(
+        '-s', '--source',
+        help='Website identifier (optional, auto-detected if not provided)'
+    )
+    sync_novel_parser.add_argument(
+        '--all',
+        action='store_true',
+        help='Sync all fetched novels alphabetically (ignores --novel-id and --novel-title)'
+    )
+    sync_novel_parser.set_defaults(func=cmd_sync_novel)
+    
+    # ===== NOVEL LIST SUBCOMMAND =====
+    novel_list_parser = subparsers.add_parser(
+        'novel',
+        help='Novel management commands',
+        description='List and manage fetched and synced novels.',
+        formatter_class=argparse.RawTextHelpFormatter
+    )
+    novel_subparsers = novel_list_parser.add_subparsers(
+        dest='novel_command',
+        help='Novel subcommands',
+        metavar='{list,synced}'
+    )
+    
+    # novel list
+    list_parser = novel_subparsers.add_parser(
+        'list',
+        help='List all fetched novels',
+        description='Display all novels that have been fetched from websites.\\nShows 10 novels per page with pagination.'
+    )
+    list_parser.add_argument(
+        '-c', '--count',
+        action='store_true',
+        help='Show only the count of fetched novels'
+    )
+    list_parser.set_defaults(func=cmd_novel_list)
+    
+    # novel synced
+    synced_parser = novel_subparsers.add_parser(
+        'synced',
+        help='List all synced novels',
+        description='Display all novels that have been synced with metadata.\\nShows 10 novels per page with pagination.'
+    )
+    synced_parser.add_argument(
+        '-c', '--count',
+        action='store_true',
+        help='Show only the count of synced novels'
+    )
+    synced_parser.set_defaults(func=cmd_novel_synced)
+    
+    # novel info
+    info_parser = novel_subparsers.add_parser(
+        'info',
+        help='Display detailed information about a novel',
+        description='Show comprehensive information about a novel including metadata, description, and sources.'
+    )
+    info_parser.add_argument(
+        '-i', '--novel-id',
+        help='Novel ID (either this or --novel-title required)'
+    )
+    info_parser.add_argument(
+        '-n', '--novel-title',
+        help='Novel title (either this or --novel-id required)'
+    )
+    info_parser.set_defaults(func=cmd_novel_info)
     
     # Parse arguments
     args = parser.parse_args()
@@ -517,6 +933,7 @@ def main():
         print('python tool.py extract -n "My Novel" -s "https://www.69shuba.com/book/90336/" -m 10  # 69shuba.com TOC')
         print('python tool.py extract -n "My Novel" -s "https://www.novel543.com/123456/dir" -m 10 --use-cloudscraper  # Use older method')
         print('python tool.py extract -n "My Novel" -s "https://www.novel543.com/123456/dir" -m 10 -sv  # Skip API validation')
+        print('python tool.py extract -n "My Novel" -s "https://www.69shuba.com/book/90336/" -r 50  # Re-scrape and re-translate from chapter 50')
         return
     
     # Call the appropriate function

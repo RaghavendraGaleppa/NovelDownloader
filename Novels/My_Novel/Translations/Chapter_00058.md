@@ -1,4 +1,4 @@
-**Chapter 1: The Human Verification**
+**Chapter 1: Verification**
 
 Verify you are human by completing the action below.
 
