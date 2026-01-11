@@ -1,3 +1,0 @@
-**Chapter 149: Summoning the Heavenly Ghost**
-
-A swath of blood-red light submerged this deep pit. As Wei family cultivators continuously threw large numbers of people, demonic beasts, and livestock into the pit, a lake of blood began to slowly rise. The blood lake submerged the bronze temple, quickly making it vanish from everyone's sight. Inside the bronze temple, the altar slowly absorbed the blood surging around it. However, this absorption rate was clearly slower than the speed at which the Wei family cultivators threw in the sacrifices. This blood lake seemed to possess...

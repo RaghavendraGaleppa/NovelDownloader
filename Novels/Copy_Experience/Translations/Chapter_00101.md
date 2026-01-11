@@ -1,3 +1,0 @@
-**Chapter 100: Abnormal Demonic Tide Movement**
-
-While Mo Qingchan was in seclusion cultivating for Foundation Establishment, Lu Xu simultaneously guarded her and continued to go out to sell the demonic beast materials. He gradually began to release a portion of second-tier materials. Given the current situation, the appearance of second-tier materials on the market did not attract much attention. In this manner, Lu Xu transformed into various different appearances, releasing different kinds of second-tier demonic beast materials little by little. When he had almost sold all the demonic beast materials he intended to sell...

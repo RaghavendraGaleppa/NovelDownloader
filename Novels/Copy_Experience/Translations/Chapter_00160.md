@@ -1,3 +1,0 @@
-**Chapter 158: Dare Not Be First in the World**
-
-Lu Xu did not know that True Monarch Zhongli's timely appearance had helped him avoid a disaster. He slowly moved towards Divine Wood Peak. Meanwhile, those Golden Core cultivators who were roughly the same distance away as him were all encountering trouble. They came from various directions and, by coincidence, all encountered a Rank 3 spirit vein. Regardless of the choice they made—whether to break the restriction or not—they all ran into trouble. Those who chose to break the restriction, when they were filled with...

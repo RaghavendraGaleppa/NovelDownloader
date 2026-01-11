@@ -1,3 +1,0 @@
-Chapter 133: Exploring the Divine Wood Sect Ruins
-
-Lu Xu took out the map he had obtained from the Black Robe Association leader. It meticulously marked the locations of many islands. He didn't know where this person had acquired the map, or the token containing a complete copy of the "Azure Wood Longevity Art." Neither seemed like ordinary items. Lu Xu had always felt that the Black Robe Association leader harbored some secrets. Unfortunately, the other party was already dead, their soul extracted and refined by him, leaving him no way to investigate what they had truly hidden.

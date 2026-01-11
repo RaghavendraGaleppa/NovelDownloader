@@ -1,3 +1,0 @@
-Chapter 81: Author's Note on Publication
-
-The author, Duoqing Shiliu (Passionate Pomegranate), announces that the book, which has been written for over a month, is finally being published on Qidian. As a newcomer, the author admits to being unfamiliar with the recommendation system but is satisfied with the healthy reading retention ratio, which indicates good quality. To thank the readers and the editor, the author promises to release five chapters immediately upon publication, followed by two updates daily aiming for 6,000 words, though this may vary due to work commitments. Finally, the author earnestly requests everyone to support the first subscription.

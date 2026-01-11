@@ -1,3 +1,0 @@
-Chapter 98: Returning to the Immortal City
-
-After tallying up his gains from this trip, Lu Xu immediately prepared to return to Purple Lightning Mountain. There was still a high-grade second-tier Green-Blood Ox on Cuiyun Mountain, but he no longer intended to hunt that demon beast. Firstly, that demon beast was equivalent to a late-stage Foundation Establishment cultivator. Although its intelligence was low, its strength was still quite formidable and difficult to deal with. Wang Jue had likely already used a formation or similar means to trap this demon beast once, so trying to deal with it using formations again wouldn't be as easy.

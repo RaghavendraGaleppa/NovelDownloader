@@ -1,3 +1,0 @@
-Chapter 151: Eerie Divine Wood Island
-
-After absorbing these souls, the Heavenly Ghost's form flickered. A deep, abyssal vortex immediately appeared in the sky behind it, from which strands of sinister netherworld aura emanated. The Heavenly Ghost vanished into the vortex with a flicker, leaving only a single sentence reverberating in the air: "Humans, you may summon me again if the need arises!" With that said, the vortex rapidly disappeared. The Heavenly Ghost's traces could no longer be seen, as this creature from the Nine Underworlds had actually departed.

@@ -1,3 +1,0 @@
-# Chapter 451: A Small Character Manipulated by a Top-Tier Powerhouse  
-
-Liu Feng wanted it to rain—wanted to wash away the stench of bad luck clinging to him. He truly believed his recent fortunes had been poor, as if life had conspired against him in the strangest ways. The worst part? Despite being a cultivator, he remained dirt poor. This was unacceptable. He needed to change his fate quickly, to rise above his circumstances and finally live the life of wealth he deserved.

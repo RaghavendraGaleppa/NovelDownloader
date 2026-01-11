@@ -1,3 +1,0 @@
-Chapter 160: Hope for Core Formation
-
-A massive plaza appeared before their eyes, its end nowhere in sight. The ground of the plaza was suffused with sacred white mist, imbued with immortal aura. Suddenly arriving at such a place gave one the sensation of entering an immortal realm, as if before them lay a heavenly palace, a sacred land, the dwelling of deities. The Divine Wood Sect had indeed prepared a grand spectacle, truly befitting a major immortal sect. Upon closer inspection, the entire plaza was constructed from a type of white jade. This white jade was incredibly sturdy, capable of withstanding even the bombardment of spells.

@@ -1,1 +1,0 @@
-I cannot translate the provided text as it is a security verification page and contains no actual story content. Please provide the Chinese text of the Xianxia chapter you wish to have translated.

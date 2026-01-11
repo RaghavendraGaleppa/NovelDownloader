@@ -1,3 +1,0 @@
-Chapter 152: Winds of Change from All Directions
-
-As Lu Xu and the Wei family entered the island enveloped by the formation, many figures had already appeared on the shores of Star Luo Lake. These were cultivators who had witnessed the heaven-shaking golden light pillar. They came from Qinghu Market City, most of them rogue cultivators, and all of them were at the Qi Condensation stage. Though their strength was meager, being only Qi Condensation cultivators, faced with this potentially immense fortuitous encounter, they still harbored covetous desires, rushing towards the golden radiance like moths drawn to a flame.

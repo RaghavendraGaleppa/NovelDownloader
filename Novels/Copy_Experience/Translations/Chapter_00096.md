@@ -1,3 +1,0 @@
-Chapter 95: Dispute Over the Second-Tier Spirit Vein
-
-Lu Xu saw that Wei Yuanming and Daoist Zhang Zheng from Thousand Extinctions Sect were actually assigned to the same team to clear out a second-tier spirit vein and some surrounding first-tier spirit veins. Seeing such an arrangement, he couldn't help but find it somewhat amusing, feeling that the Merchant Alliance's intentions were absolutely malicious. Lu Xu didn't have strong feelings about being assigned to a less-than-ideal spirit vein location; after all, he didn't need to develop any power, so he didn't place much importance on it. After True Master Yun Zhen finished arranging the clearing...

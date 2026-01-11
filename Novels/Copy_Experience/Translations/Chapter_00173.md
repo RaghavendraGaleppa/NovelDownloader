@@ -1,3 +1,0 @@
-**Chapter 171: Breaking Through to Golden Core!**
-
-After Lu Xu guessed what True Man Muyuan was planning, he immediately grew wary. This old fellow, who had lived for an unknown amount of time, was indeed incredibly insidious and cunning. Initially, he had even feigned a kind and benevolent demeanor, almost making Lu Xu genuinely believe that he was someone wholeheartedly devoted to the Divine Wood Sect's legacy. Hmm, in truth, he might indeed be genuinely concerned for the Divine Wood Sect, but only on the premise that he was the one in control of it. In what he transmitted to Lu Xu...

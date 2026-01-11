@@ -1,3 +1,0 @@
-Chapter 80: Choosing a Cultivation Method
-
-The various configurations of a second-tier cave abode were much better than a first-tier one. Not only was the spiritual energy extremely rich, but it also came with a dedicated formation to protect the courtyard. Of course, the grade of this formation wasn't very high, only mid-grade first-tier. After Lu Xu glanced around, he decided to set up the high-grade first-tier formation he possessed here later. Previously, he had placed the high-grade first-tier Wind Fire Blazing Array in the Myriad Monster Mountains, occupying a second-tier spiritual...

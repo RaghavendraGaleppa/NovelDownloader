@@ -1,3 +1,0 @@
-Chapter 155: Myriad Souls Banner! Evil Ghost Advances to Golden Core!
-
-After spending a considerable amount of time, Lu Xu broke through these restrictions and entered the second-tier spiritual vein. While he was meticulously searching inside, four figures gradually appeared in this area behind him. They arrived before the restrictions Lu Xu had broken, looking at the lingering glow of the shimmering restrictions and the rich spiritual energy emanating from within. The four of them immediately widened their eyes. "This… this is another second-tier spiritual vein, and it's even a high-grade second-tier..."

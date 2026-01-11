@@ -1,3 +1,0 @@
-**Chapter 105: Leaving Wanxian City**
-
-After returning from Wei Yuanming's place, Lu Xu had gained a certain understanding of Wei State's current situation. After some consideration, he finally made up his mind to leave Wanxian City and take control of Qinghu Market. Upon returning home, Lu Xu immediately informed Mo Qingchan of this decision. Mo Qingchan, naturally, supported it wholeheartedly. Thus, Lu Xu stayed in Wanxian City for a few more days, acquiring a portion of various materials that were difficult to obtain elsewhere and might be useful in the future.

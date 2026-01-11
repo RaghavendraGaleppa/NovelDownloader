@@ -1,3 +1,0 @@
-Chapter 110: I Want to Bear Your Child
-
-Lu Xu handed over the various mundane affairs of Qinghu Market City to Mo Qingchan to handle. He, himself, began to set up formations around the market city. He took out the Grade 2 Superior Golden Blade Myriad Edge Formation and buried its formation plates piece by piece into the earth veins surrounding the market city. After inserting the formation flags, not long after, a golden light rose around the market city. The spirit veins supported the operation of this formation, allowing its power to reach its peak. Although the origin of this formation could not be explained, Lu...

@@ -1,3 +1,0 @@
-Chapter 142: Bai Chongshan Might Be Secretly Forming a Golden Core!
-
-After imprisoning Wei Yuanming, Lu Xu immediately began to write invitations, inviting the non-Wei Family Foundation Establishment cultivators in Wei Country to gather. This was when the previously established offensive and defensive alliance came into play. The Wei Family had a monopoly in Wei Country, and everyone was extremely wary of them. Now, upon learning that the Wei Family intended to bully one of the scattered forces, the other families would certainly not stand by idly. Everyone understood the principle of "if the lips are gone, the teeth will be cold." Moreover, Qing...

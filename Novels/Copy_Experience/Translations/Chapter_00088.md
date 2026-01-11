@@ -1,3 +1,0 @@
-**Chapter Eighty-Seven: Comprehending the Luan-Riding Yang-Supplementing Art**
-
-In the room, Lu Xu sat up, his strong, powerful body exuding a jade-like luster. He raised his hand, and strands of black hair slipped through his fingers. The person beside him let out a soft moan and rolled over, a delicate, snow-white form coming into view. Her slender eyelashes quivered lightly a few times before she opened her eyes, revealing a pair of starlike eyes, tinged with a hint of confusion and youthful innocence. She saw the figure beside her. After blinking her eyes a few times, she finally seemed to realize something, her gaze still bewildered.
