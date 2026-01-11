@@ -52,14 +52,24 @@ class WebsiteScraper(ABC):
         pass
     
     @abstractmethod
-    def fetch_all_novels(self, max_pages: Optional[int] = None, save_callback=None) -> int:
+    def fetch_all_novels(
+        self, 
+        max_pages: Optional[int] = None, 
+        start_page: int = 1, 
+        save_callback=None,
+        listing_type: str = 'all',
+        category_id: Optional[int] = None
+    ) -> int:
         """
         Fetch list of all novels from the website.
         
         Args:
             max_pages: Optional limit on number of pages to scrape (for testing)
+            start_page: Page number to start from (default: 1)
             save_callback: Optional callback function(novels_batch) to save novels
                           incrementally after each page is fetched
+            listing_type: Type of listing to fetch (implementation-specific)
+            category_id: Category/genre ID (implementation-specific)
             
         Returns:
             Total number of novels found

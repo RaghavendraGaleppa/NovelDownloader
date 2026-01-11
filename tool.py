@@ -231,11 +231,20 @@ def cmd_list(args):
 def cmd_fetch_all_novels(args):
     """Handle the fetch-all-novels subcommand"""
     print(f"🔍 Fetching all novels from {args.source}...")
+    if args.start_page and args.start_page > 1:
+        print(f"Starting from page {args.start_page}")
+    if args.listing_type != 'all':
+        print(f"Using listing type: {args.listing_type}")
+    if args.category:
+        print(f"Category: {args.category}")
     
     try:
         count = fetch_all_novels_from_source(
             source=args.source,
-            max_pages=args.max_pages
+            max_pages=args.max_pages,
+            start_page=args.start_page,
+            listing_type=args.listing_type,
+            category_id=args.category
         )
         print(f"\n✅ Successfully fetched {count} novels from {args.source}")
     except ValueError as e:
@@ -801,6 +810,24 @@ def main():
         '-m', '--max-pages',
         type=int,
         help='Optional limit on number of pages to scrape (for testing)'
+    )
+    fetch_all_parser.add_argument(
+        '--start-page',
+        type=int,
+        default=1,
+        help='Page number to start fetching from (default: 1)'
+    )
+    fetch_all_parser.add_argument(
+        '-t', '--listing-type',
+        default='all',
+        choices=['all', 'monthvisit', 'allvote', 'newhot', 'category', 'finished'],
+        help='Type of listing to fetch (default: all)'
+    )
+    fetch_all_parser.add_argument(
+        '-c', '--category',
+        type=int,
+        choices=list(range(1, 13)),
+        help='Category ID (1-12, required for category/finished types)'
     )
     fetch_all_parser.set_defaults(func=cmd_fetch_all_novels)
     

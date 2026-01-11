@@ -17,7 +17,13 @@ from utils.logging_utils import get_logger
 logger = get_logger()
 
 
-def fetch_all_novels_from_source(source: str, max_pages: Optional[int] = None) -> int:
+def fetch_all_novels_from_source(
+    source: str, 
+    max_pages: Optional[int] = None, 
+    start_page: int = 1,
+    listing_type: str = 'all',
+    category_id: Optional[int] = None
+) -> int:
     """
     Fetch all novels from a source website and store them in the database.
     
@@ -26,7 +32,10 @@ def fetch_all_novels_from_source(source: str, max_pages: Optional[int] = None) -
     
     Args:
         source: Website identifier (e.g., '69shuba')
-        max_pages: Optional limit on pages to scrape (for testing)
+        max_pages: Optional limit on number of pages to scrape (for testing)
+        start_page: Page number to start fetching from (default: 1)
+        listing_type: Type of listing ('all', 'monthvisit', 'category', etc.)
+        category_id: Category ID for category-specific fetching
         
     Returns:
         Number of novels found and stored
@@ -34,7 +43,10 @@ def fetch_all_novels_from_source(source: str, max_pages: Optional[int] = None) -
     Raises:
         ValueError: If source is not a valid website identifier
     """
-    logger.info(f"Starting fetch_all_novels for source: {source}")
+    logger.info(
+        f"Starting fetch_all_novels for source: {source}, "
+        f"listing_type: {listing_type}, category_id: {category_id}, start_page: {start_page}"
+    )
     
     # Get the appropriate scraper
     scraper = get_scraper(source)
@@ -105,7 +117,10 @@ def fetch_all_novels_from_source(source: str, max_pages: Optional[int] = None) -
     # Fetch novels with incremental saving
     total_novels = scraper.fetch_all_novels(
         max_pages=max_pages,
-        save_callback=save_novel_batch
+        start_page=start_page,
+        save_callback=save_novel_batch,
+        listing_type=listing_type,
+        category_id=category_id
     )
     
     logger.info(f"Fetch complete: {total_saved} novels processed, {new_count} new, {updated_count} updated")

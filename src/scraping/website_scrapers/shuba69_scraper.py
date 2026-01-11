@@ -28,6 +28,34 @@ class Shuba69Scraper(WebsiteScraper):
     BASE_URL = "https://www.69shuba.com"
     CATEGORY_URL_TEMPLATE = "https://www.69shuba.com/novels/class/0/{page}.htm"
     
+    # Different listing types with their URL patterns
+    LISTING_TYPES = {
+        'all': '/novels/class/0/{page}.htm',                # All novels (default, but has duplication)
+        'monthvisit': '/novels/monthvisit_0_0_{page}.htm',  # Monthly popular
+        'allvote': '/novels/allvote_0_0_{page}.htm',        # User recommended
+        'newhot': '/novels/newhot_0_0_{page}.htm',          # New & hot
+        # Category-specific (category_id from 1-12)
+        'category': '/novels/class/{category}/{page}.htm',
+        # Finished novels by category
+        'finished': '/novels/full/{category}/{page}.htm',
+    }
+    
+    # Category mapping
+    CATEGORIES = {
+        1: '玄幻魔法',    # Xuanhuan Magic
+        2: '修真武侠',    # Cultivation Wuxia
+        3: '言情小说',    # Romance
+        4: '历史军事',    # History Military
+        5: '游戏竞技',    # Gaming
+        6: '科幻空间',    # Sci-Fi
+        7: '悬疑惊悚',    # Mystery Thriller
+        8: '同人小说',    # Fanfiction
+        9: '都市小说',    # Urban
+        10: '官场职场',   # Politics Workplace
+        11: '穿越时空',   # Time Travel
+        12: '青春校园',   # Youth School
+    }
+    
     def __init__(self):
         self.scraper = None
     
@@ -46,25 +74,51 @@ class Shuba69Scraper(WebsiteScraper):
             self.scraper.close()
             self.scraper = None
     
-    def fetch_all_novels(self, max_pages: Optional[int] = None, save_callback=None) -> int:
+    def fetch_all_novels(
+        self, 
+        max_pages: Optional[int] = None, 
+        start_page: int = 1, 
+        save_callback=None,
+        listing_type: str = 'all',
+        category_id: Optional[int] = None
+    ) -> int:
         """
         Fetch all novels from category listing pages.
         
-        Iterates through /novels/class/0/{page}.htm pages until no more novels found.
-        Uses Selenium with 3-5 second delays between pages.
-        
         Args:
             max_pages: Optional limit on number of pages to scrape
-            save_callback: Optional callback function to save novels after each page.
-                          Called with a list of NovelListItem objects.
+            start_page: Page number to start from (default: 1)
+            save_callback: Optional callback function to save novels after each page
+            listing_type: Type of listing ('all', 'monthvisit', 'allvote', 'newhot', 'category', 'finished')
+            category_id: Category ID (1-12) for 'category' and 'finished' types
         
         Returns:
             Total number of novels found
         """
         self._ensure_scraper()
         
+        # Validate listing type
+        if listing_type not in self.LISTING_TYPES:
+            raise ValueError(
+                f"Invalid listing_type '{listing_type}'. "
+                f"Available: {list(self.LISTING_TYPES.keys())}"
+            )
+        
+        # Validate category_id if needed
+        if listing_type in ['category', 'finished']:
+            if category_id is None:
+                raise ValueError(f"category_id is required for listing_type '{listing_type}'")
+            if category_id not in self.CATEGORIES:
+                raise ValueError(
+                    f"Invalid category_id {category_id}. "
+                    f"Available: {list(self.CATEGORIES.keys())}"
+                )
+        
+        # Get URL pattern
+        url_pattern = self.LISTING_TYPES[listing_type]
+        
         total_novels = 0
-        page_num = 1
+        page_num = start_page
         
         try:
             while True:
@@ -72,7 +126,12 @@ class Shuba69Scraper(WebsiteScraper):
                     print(f"Reached max_pages limit ({max_pages}). Stopping.")
                     break
                 
-                url = self.CATEGORY_URL_TEMPLATE.format(page=page_num)
+                # Build URL based on listing type
+                if listing_type in ['category', 'finished']:
+                    url = self.BASE_URL + url_pattern.format(category=category_id, page=page_num)
+                else:
+                    url = self.BASE_URL + url_pattern.format(page=page_num)
+                
                 print(f"Fetching page {page_num}: {url}")
                 
                 html_content = self.scraper.fetch_url(url)
