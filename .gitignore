@@ -213,3 +213,5 @@ ENV/
 .idea/
 
 feature_design/
+Novels/
+.cursor/
