@@ -1,6 +1,0 @@
----
-description: Implementing feature design
-globs: 
-alwaysApply: false
----
-Using the [DocumentationStandard.md](mdc:feature_design/DocumentationStandard.md), updated the document after every feature design
