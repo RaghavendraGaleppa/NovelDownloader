@@ -8,7 +8,10 @@ import json
 import random
 import argparse
 import urllib3
-from src.scraping.extraction_backends import ExtractionBackend, EB69Shu, EB1QXS, EBNovel543, EB69Shuba
+try:
+    from scraping.extraction_backends import ExtractionBackend, EB69Shu, EB1QXS, EBNovel543, EB69Shuba
+except ImportError:
+    from src.scraping.extraction_backends import ExtractionBackend, EB69Shu, EB1QXS, EBNovel543, EB69Shuba
 from urllib.parse import urlparse
 from typing import Optional
 from datetime import datetime

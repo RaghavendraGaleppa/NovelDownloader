@@ -102,9 +102,7 @@ def _process_single_chapter_from_db(
     try:
         with open(raw_chapter["saved_at"], 'r', encoding='utf-8') as f:
             chapter_content = f.read()
-        # #region agent log
-        import json; open('/home/raghavendragaleppa/Desktop/Novels/NovelDownloader/.cursor/debug.log','a').write(json.dumps({"hypothesisId":"D","location":"translator.py:_process_single_chapter_from_db","message":"Raw chapter file read","data":{"saved_at":raw_chapter["saved_at"],"content_length":len(chapter_content),"has_separator":"---" in chapter_content,"chapter_num":chapter_num},"timestamp":__import__('time').time(),"sessionId":"debug-session"})+'\n')
-        # #endregion
+
     except Exception as e:
         console.print(f"Error reading raw chapter file {raw_chapter['saved_at']}: {e}", style="red")
         raise
@@ -388,9 +386,18 @@ def _rescrape_chapter(raw_chapter: dict, source_url: str, novel_folder_path: str
     try:
         # Import scraping utilities
         try:
-            from src.scraping.parse_chapter import scrape_chapter, detect_extraction_backend
-        except ImportError:
+            # When running as a package (e.g. from src/)
             from scraping.parse_chapter import scrape_chapter, detect_extraction_backend
+        except ImportError:
+            try:
+                # When running from root (e.g. tool.py)
+                from src.scraping.parse_chapter import scrape_chapter, detect_extraction_backend
+            except ImportError:
+                 # Fallback: try adding src to path dynamically if needed, or assume we are in src
+                 import sys
+                 if "src" not in sys.path:
+                     sys.path.append(os.path.join(os.getcwd(), "src"))
+                 from scraping.parse_chapter import scrape_chapter, detect_extraction_backend
         
         # Detect the appropriate backend based on the URL
         backend = detect_extraction_backend(source_url)
